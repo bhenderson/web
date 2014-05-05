@@ -43,15 +43,13 @@ func (rs *Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(paths) > 2 {
-		if rs.Resource == nil {
-			if rs.NotFound == nil {
-				http.NotFound(w, r)
-			} else {
-				rs.NotFound(w, r)
-			}
-			return
+	if len(paths) > 2 && rs.Resource == nil {
+		if rs.NotFound == nil {
+			http.NotFound(w, r)
+		} else {
+			rs.NotFound(w, r)
 		}
+		return
 	}
 
 	// set resource id
@@ -93,8 +91,7 @@ func parseComponents(r *http.Request) []string {
 	}
 	//This cuts off the trailing forward slash.
 	if strings.HasSuffix(path, "/") {
-		cut_off_last_char_len := len(path) - 1
-		path = path[:cut_off_last_char_len]
+		path = path[:len(path)-1]
 	}
 	//We need to isolate the individual components of the path.
 	components := strings.Split(path, "/")
