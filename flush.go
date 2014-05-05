@@ -14,9 +14,9 @@ func (fw *flushWriter) Write(p []byte) (int, error) {
 }
 
 // Flush implements Middleware
-func Flush(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func Flush(next http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		w = &flushWriter{w}
 		next.ServeHTTP(w, r)
-	})
+	}
 }

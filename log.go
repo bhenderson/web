@@ -16,8 +16,8 @@ func (lw *logWriter) WriteHeader(code int) {
 	lw.ResponseWriter.WriteHeader(code)
 }
 
-func Log(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func Log(next http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		now := time.Now()
 		code := http.StatusOK
 		w = &logWriter{w, code}
@@ -26,5 +26,5 @@ func Log(next http.Handler) http.Handler {
 			code = fw.status
 		}
 		log.Println(code, r.URL.Path, time.Since(now))
-	})
+	}
 }
