@@ -5,30 +5,21 @@ import (
 	"strings"
 )
 
-// TODO rename
-var resourceId = "_resourceId"
-
-// TODO needed?
-func ResourceId(r *http.Request) string {
-	r.Form.Get(resourceId)
-}
-
 type Resource struct {
 	Index    http.HandlerFunc
 	Show     http.HandlerFunc
-	Update   http.HandlerFunc
 	Create   http.HandlerFunc
+	Update   http.HandlerFunc
 	Delete   http.HandlerFunc
 	NotFound http.HandlerFunc
-	method   *Method
+	Resource http.Handler
 }
 
 func (rs *Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// skip first component
-	paths := parseComponents(r)[1:]
+	paths := parseComponents(r)
 
 	// no resource id
-	if len(paths) < 1 {
+	if len(paths) < 2 {
 		m := &Method{
 			Get:      rs.Index,
 			NotFound: rs.NotFound,
@@ -37,35 +28,37 @@ func (rs *Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(paths) > 1 {
-		if rs.NotFound == nil {
-			http.NotFound(w, r)
+	if len(paths) > 2 {
+		if rs.Resource == nil {
+			if rs.NotFound == nil {
+				http.NotFound(w, r)
+			} else {
+				rs.NotFound(w, r)
+			}
 		} else {
-			rs.NotFound(w, r)
+			ps := [4]string{}
+			ps[1] = paths[0]
+			ps[2] = paths[1]
+			prefix := strings.Join(ps[:], "/")
+			h := http.StripPrefix(prefix, rs.Resource)
+			h.ServeHTTP(w, r)
 		}
 		return
 	}
 
 	// set resource id
-	id := paths[0]
-	formId := resourceId
+	id := paths[1]
 	r.ParseForm()
-	r.Form.Set(formId, id)
+	r.Form.Set("id", id)
 
-	rs.setMethod()
-	rs.method.ServeHTTP(w, r)
-}
-
-func (rs *Resource) setMethod() {
-	if rs.method == nil {
-		rs.method = &Method{
-			Get:      rs.Show,
-			Put:      rs.Update,
-			Post:     rs.Create,
-			Delete:   rs.Delete,
-			NotFound: rs.NotFound,
-		}
+	m := &Method{
+		Get:      rs.Show,
+		Put:      rs.Update,
+		Post:     rs.Create,
+		Delete:   rs.Delete,
+		NotFound: rs.NotFound,
 	}
+	m.ServeHTTP(w, r)
 }
 
 func parseComponents(r *http.Request) []string {

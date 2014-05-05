@@ -30,7 +30,9 @@ func (m *Method) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		f = m.Post
 	case "PUT":
 		f = m.Put
-	default:
+	}
+
+	if f == nil {
 		f = m.Any
 	}
 

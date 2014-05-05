@@ -76,7 +76,7 @@ func main() {
 		Show:   HelloUser,
 		Create: CreateUser,
 		Resource: &web.Resource{
-			Prefix: "/posts/",
+			Prefix: "posts",
 			Show:   HelloPost,
 		},
 	})
