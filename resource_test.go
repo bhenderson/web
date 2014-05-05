@@ -62,16 +62,23 @@ func TestResource_Form(t *testing.T) {
 
 func TestResource_nesting(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "%s %s", r.Form.Get("id"), r.URL.Path)
+		fmt.Fprintf(w, "%s %s %s",
+			r.Form.Get("id"),
+			r.Form.Get("posts_id"),
+			r.URL.Path)
 	}
 	rs := &Resource{
 		Resource: &Resource{
-			Show: handler,
+			Prefix: "posts",
+			Show:   handler,
 		},
 	}
 
 	_, body := testResource(t, "GET", "/users/1/posts/2", rs)
-	assert.Equal(t, "2 /users/1/posts/2", body)
+	assert.Equal(t, "1 2 posts/2", body)
+
+	c, _ := testResource(t, "GET", "/users/1/foo/2", rs)
+	assert.Equal(t, 404, c)
 }
 
 func testResource(t testing.TB, method, path string, f http.Handler) (int, string) {
