@@ -40,12 +40,12 @@ func (rs *Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if rs.NotFound == nil {
+		rs.NotFound = http.NotFound
+	}
+
 	if len(paths) > 2 && rs.Handler == nil {
-		if rs.NotFound == nil {
-			http.NotFound(w, r)
-		} else {
-			rs.NotFound(w, r)
-		}
+		rs.NotFound(w, r)
 		return
 	}
 
