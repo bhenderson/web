@@ -14,6 +14,7 @@ type Resource struct {
 	Delete   http.HandlerFunc
 	NotFound http.HandlerFunc
 	Handler  http.Handler
+	method   *Method
 }
 
 func (rs *Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -64,14 +65,20 @@ func (rs *Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	m := &Method{
-		Get:      rs.Show,
-		Put:      rs.Update,
-		Post:     rs.Create,
-		Delete:   rs.Delete,
-		NotFound: rs.NotFound,
+	buildMethod(rs)
+	rs.method.ServeHTTP(w, r)
+}
+
+func buildMethod(rs *Resource) {
+	if rs.method == nil {
+		rs.method = &Method{
+			Get:      rs.Show,
+			Put:      rs.Update,
+			Post:     rs.Create,
+			Delete:   rs.Delete,
+			NotFound: rs.NotFound,
+		}
 	}
-	m.ServeHTTP(w, r)
 }
 
 func parseComponents(r *http.Request) []string {
