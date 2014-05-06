@@ -19,9 +19,7 @@ type Resource struct {
 }
 
 func (rs *Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if rs.NotFound == nil {
-		rs.NotFound = http.NotFound
-	}
+	buildResource(rs)
 
 	paths := parseComponents(r)
 
@@ -38,7 +36,7 @@ func (rs *Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// no resource id
 	if len(paths) < 2 {
-		buildIndexHandler(rs).ServeHTTP(w, r)
+		rs.index.ServeHTTP(w, r)
 		return
 	}
 
@@ -62,20 +60,19 @@ func (rs *Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	buildMethod(rs).ServeHTTP(w, r)
+	rs.method.ServeHTTP(w, r)
 }
 
-func buildIndexHandler(rs *Resource) http.Handler {
+func buildResource(rs *Resource) {
+	if rs.NotFound == nil {
+		rs.NotFound = http.NotFound
+	}
 	if rs.index == nil {
 		rs.index = &Method{
 			Get:      rs.Index,
 			NotFound: rs.NotFound,
 		}
 	}
-	return rs.index
-}
-
-func buildMethod(rs *Resource) http.Handler {
 	if rs.method == nil {
 		rs.method = &Method{
 			Get:      rs.Show,
@@ -85,7 +82,6 @@ func buildMethod(rs *Resource) http.Handler {
 			NotFound: rs.NotFound,
 		}
 	}
-	return rs.method
 }
 
 func parseComponents(r *http.Request) []string {
