@@ -75,7 +75,7 @@ func main() {
 		Index:  HelloUsers,
 		Show:   HelloUser,
 		Create: CreateUser,
-		Resource: &web.Resource{
+		Handler: &web.Resource{
 			Prefix: "posts",
 			Show:   HelloPost,
 		},

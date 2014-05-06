@@ -13,15 +13,11 @@ type Resource struct {
 	Update   http.HandlerFunc
 	Delete   http.HandlerFunc
 	NotFound http.HandlerFunc
-	Resource http.Handler
+	Handler  http.Handler
 }
 
 func (rs *Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	paths := parseComponents(r)
-
-	if len(paths) < 1 {
-		// not found
-	}
 
 	if rs.Prefix != "" && rs.Prefix != paths[0] {
 		// not found
@@ -43,7 +39,7 @@ func (rs *Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(paths) > 2 && rs.Resource == nil {
+	if len(paths) > 2 && rs.Handler == nil {
 		if rs.NotFound == nil {
 			http.NotFound(w, r)
 		} else {
@@ -53,6 +49,7 @@ func (rs *Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// set resource id
+	base := paths[0]
 	id := paths[1]
 	formId := "id"
 	if rs.Prefix != "" {
@@ -62,12 +59,8 @@ func (rs *Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r.Form.Set(formId, id)
 
 	if len(paths) > 2 {
-		ps := [4]string{}
-		ps[1] = paths[0]
-		ps[2] = paths[1]
-		prefix := strings.Join(ps[:], "/")
-		h := http.StripPrefix(prefix, rs.Resource)
-		h.ServeHTTP(w, r)
+		prefix := strings.Join([]string{"", base, id, ""}, "/")
+		http.StripPrefix(prefix, rs.Handler).ServeHTTP(w, r)
 		return
 	}
 

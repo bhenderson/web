@@ -68,7 +68,7 @@ func TestResource_nesting(t *testing.T) {
 			r.URL.Path)
 	}
 	rs := &Resource{
-		Resource: &Resource{
+		Handler: &Resource{
 			Prefix: "posts",
 			Show:   handler,
 		},
