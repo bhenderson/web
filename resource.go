@@ -18,15 +18,20 @@ type Resource struct {
 }
 
 func (rs *Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if rs.NotFound == nil {
+		rs.NotFound = http.NotFound
+	}
+
 	paths := parseComponents(r)
+
+	if len(paths) < 1 {
+		rs.NotFound(w, r)
+		return
+	}
 
 	if rs.Prefix != "" && rs.Prefix != paths[0] {
 		// not found
-		if rs.NotFound == nil {
-			http.NotFound(w, r)
-		} else {
-			rs.NotFound(w, r)
-		}
+		rs.NotFound(w, r)
 		return
 	}
 
@@ -37,15 +42,6 @@ func (rs *Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			NotFound: rs.NotFound,
 		}
 		m.ServeHTTP(w, r)
-		return
-	}
-
-	if rs.NotFound == nil {
-		rs.NotFound = http.NotFound
-	}
-
-	if len(paths) > 2 && rs.Handler == nil {
-		rs.NotFound(w, r)
 		return
 	}
 
@@ -60,8 +56,12 @@ func (rs *Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r.Form.Set(formId, id)
 
 	if len(paths) > 2 {
-		prefix := strings.Join([]string{"", base, id, ""}, "/")
-		http.StripPrefix(prefix, rs.Handler).ServeHTTP(w, r)
+		if rs.Handler == nil {
+			rs.NotFound(w, r)
+		} else {
+			prefix := strings.Join([]string{"", base, id, ""}, "/")
+			http.StripPrefix(prefix, rs.Handler).ServeHTTP(w, r)
+		}
 		return
 	}
 
