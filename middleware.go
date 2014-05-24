@@ -5,7 +5,7 @@ import "net/http"
 // return a HandlerFunc because that's the common use case.
 // if we changed it to return a Handler, we'd have to typecast every time
 // we create an annonymous function.
-// we accept a Handler however, because that's more "generic"
+// we accept a Handler however, because HandlerFunc is also a Handler. booyah!
 type Middleware func(http.Handler) http.HandlerFunc
 
 type stack []Middleware
