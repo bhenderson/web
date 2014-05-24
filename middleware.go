@@ -1,6 +1,9 @@
 package web
 
-import "net/http"
+import (
+	"io"
+	"net/http"
+)
 
 // return a HandlerFunc because that's the common use case.
 // if we changed it to return a Handler, we'd have to typecast every time
@@ -33,4 +36,12 @@ func Use(ms ...Middleware) {
 // http.Handle("/", web.Run(app))
 func Run(app http.Handler) http.Handler {
 	return defaultStack.Run(app)
+}
+
+// all the extra methods that http.response has :/
+type Plusser interface {
+	http.ResponseWriter
+	http.Flusher
+	http.CloseNotifier
+	io.ReaderFrom
 }
