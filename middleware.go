@@ -40,8 +40,25 @@ func Run(app http.Handler) http.Handler {
 
 // all the extra methods that http.response has :/
 type Plusser interface {
-	http.ResponseWriter
-	http.Flusher
 	http.CloseNotifier
+	http.Flusher
+	http.Hijacker
 	io.ReaderFrom
+}
+
+// responseWriterPlus implements http.ResponseWriter *and* all the extra
+// methods that http.response exposes.
+type responseWriterPlus struct {
+	http.ResponseWriter
+	Plusser
+}
+
+// WrapResponseWriter takes an http.ResponseWriter (wr) and wraps it with the
+// functionality provided by wn. The return value tries hard to implement any
+// extra methods that wr might also implement.
+func WrapResponseWriter(wn, wr http.ResponseWriter) http.ResponseWriter {
+	if wp, ok := wr.(Plusser); ok {
+		return &responseWriterPlus{wn, wp}
+	}
+	return wn
 }
