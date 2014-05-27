@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 )
 
@@ -41,7 +42,7 @@ func NewTestResponse() *testResponse {
 	}
 }
 
-func Test_testResponse(t *testing.T) {
+func TestTestResponse(t *testing.T) {
 	tr := interface{}(NewTestResponse())
 
 	if _, ok := tr.(http.ResponseWriter); !ok {
@@ -62,5 +63,33 @@ func Test_testResponse(t *testing.T) {
 
 	if _, ok := tr.(io.ReaderFrom); !ok {
 		t.Fatal("expected testResponse to implement io.ReaderFrom")
+	}
+}
+
+func TestPlusserInMiddleware(t *testing.T) {
+	var b bool
+	var app http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
+		_, b = w.(Plusser)
+	}
+	s := stack{}
+
+	// a middleware that wraps it's own ResponseWriter, demonstrating how
+	// easy it is to lose extra methods.
+	mid := func(next http.Handler) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			w = &struct{ http.ResponseWriter }{w}
+			next.ServeHTTP(w, r)
+		}
+	}
+
+	s.Use(mid)
+
+	tr := NewTestResponse()
+	req := &http.Request{}
+	req.URL = &url.URL{}
+	s.Run(app).ServeHTTP(tr, req)
+
+	if !b {
+		t.Fatal("expected ResponseWriter to maintain Plusser")
 	}
 }

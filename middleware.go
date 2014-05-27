@@ -22,7 +22,21 @@ func (s *stack) Run(app http.Handler) (f http.Handler) {
 	ms := *s
 	// reverse
 	for i := len(ms) - 1; i >= 0; i-- {
-		f = ms[i](f)
+		// The simple case
+		// f = ms[i](f)
+
+		// We wrap the next handler in our own handler so we can wrap the
+		// response writer, making it so middleware writers don't have to
+		// worry about losing Plusser methods.
+		next := f
+		i := i
+		f = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mid := http.HandlerFunc(func(wr http.ResponseWriter, re *http.Request) {
+				wr = WrapResponseWriter(wr, w)
+				next.ServeHTTP(wr, re)
+			})
+			ms[i](mid).ServeHTTP(w, r)
+		})
 	}
 	return
 }

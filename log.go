@@ -20,8 +20,7 @@ func Log(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		now := time.Now()
 		code := http.StatusOK
-		lw := &logWriter{w, code}
-		w = WrapResponseWriter(lw, w)
+		w = &logWriter{w, code}
 
 		next.ServeHTTP(w, r)
 
