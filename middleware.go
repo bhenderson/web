@@ -11,13 +11,13 @@ import (
 // we accept a Handler however, because HandlerFunc is also a Handler. booyah!
 type Middleware func(http.Handler) http.HandlerFunc
 
-type stack []Middleware
+type Stack []Middleware
 
-func (s *stack) Use(ms ...Middleware) {
+func (s *Stack) Use(ms ...Middleware) {
 	*s = append(*s, ms...)
 }
 
-func (s *stack) Run(app http.Handler) (f http.Handler) {
+func (s *Stack) Run(app http.Handler) (f http.Handler) {
 	f = app
 	ms := *s
 	// reverse
@@ -43,7 +43,7 @@ func wrapMiddleware(mid Middleware, next http.Handler) http.HandlerFunc {
 	}
 }
 
-var defaultStack = &stack{}
+var defaultStack = &Stack{}
 
 func Use(ms ...Middleware) {
 	defaultStack.Use(ms...)

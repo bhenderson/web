@@ -71,7 +71,7 @@ func TestPlusserInMiddleware(t *testing.T) {
 	var app http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
 		_, b = w.(Plusser)
 	}
-	s := stack{}
+	s := Stack{}
 
 	// a middleware that wraps it's own ResponseWriter, demonstrating how
 	// easy it is to lose extra methods.
