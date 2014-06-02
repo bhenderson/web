@@ -17,8 +17,15 @@ func (s *Stack) Use(ms ...Middleware) {
 	*s = append(*s, ms...)
 }
 
+// Run takes a http.Handler (http.DefaultServeMux if nil) and builds the
+// middleware stack to return a new http.Handler.
 func (s *Stack) Run(app http.Handler) (f http.Handler) {
-	f = app
+	if app == nil {
+		f = http.DefaultServeMux
+	} else {
+		f = app
+	}
+
 	ms := *s
 	// reverse
 	for i := len(ms) - 1; i >= 0; i-- {
