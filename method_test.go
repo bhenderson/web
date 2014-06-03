@@ -8,7 +8,7 @@ import (
 )
 
 func TestMethod(t *testing.T) {
-	handler := func(w http.ResponseWriter, r *http.Request) {
+	var handler http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "hello!", http.StatusInternalServerError)
 	}
 
@@ -22,15 +22,15 @@ func TestMethod(t *testing.T) {
 }
 
 func TestMethod_Get_Any(t *testing.T) {
-	getH := func(w http.ResponseWriter, r *http.Request) {
+	var getH http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "hello!", http.StatusOK)
 	}
 
-	anyH := func(w http.ResponseWriter, r *http.Request) {
+	var anyH http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "any", http.StatusOK)
 	}
 
-	notFound := func(w http.ResponseWriter, r *http.Request) {
+	var notFound http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "found, it was not", http.StatusNotFound)
 	}
 
@@ -48,11 +48,11 @@ func TestMethod_Get_Any(t *testing.T) {
 }
 
 func TestMethod_Get_NotFound(t *testing.T) {
-	getH := func(w http.ResponseWriter, r *http.Request) {
+	var getH http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "hello!", http.StatusOK)
 	}
 
-	notFound := func(w http.ResponseWriter, r *http.Request) {
+	var notFound http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "found, it was not", http.StatusNotFound)
 	}
 

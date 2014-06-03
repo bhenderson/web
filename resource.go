@@ -6,16 +6,16 @@ import (
 )
 
 type Resource struct {
-	Prefix   string
-	Index    http.HandlerFunc
-	Show     http.HandlerFunc
-	Create   http.HandlerFunc
-	Update   http.HandlerFunc
-	Delete   http.HandlerFunc
-	NotFound http.HandlerFunc
-	Handler  http.Handler
-	method   http.Handler
-	index    http.Handler
+	Prefix string
+	Index,
+	Show,
+	Create,
+	Update,
+	Delete,
+	NotFound,
+	Handler,
+	method,
+	index http.Handler
 }
 
 func (rs *Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -24,13 +24,13 @@ func (rs *Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	paths := parseComponents(r)
 
 	if len(paths) < 1 {
-		rs.NotFound(w, r)
+		rs.NotFound.ServeHTTP(w, r)
 		return
 	}
 
 	if rs.Prefix != "" && rs.Prefix != paths[0] {
 		// not found
-		rs.NotFound(w, r)
+		rs.NotFound.ServeHTTP(w, r)
 		return
 	}
 
@@ -52,7 +52,7 @@ func (rs *Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if len(paths) > 2 {
 		if rs.Handler == nil {
-			rs.NotFound(w, r)
+			rs.NotFound.ServeHTTP(w, r)
 		} else {
 			prefix := strings.Join([]string{"", base, id, ""}, "/")
 			http.StripPrefix(prefix, rs.Handler).ServeHTTP(w, r)
@@ -65,7 +65,7 @@ func (rs *Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func buildResource(rs *Resource) {
 	if rs.NotFound == nil {
-		rs.NotFound = http.NotFound
+		rs.NotFound = http.NotFoundHandler()
 	}
 	if rs.index == nil {
 		rs.index = &Method{

@@ -3,13 +3,14 @@ package web
 import "net/http"
 
 type Method struct {
-	Get      http.HandlerFunc
-	Post     http.HandlerFunc
-	Put      http.HandlerFunc
-	Delete   http.HandlerFunc
-	Option   http.HandlerFunc
-	Any      http.HandlerFunc
-	NotFound http.HandlerFunc
+	Any,
+	Delete,
+	Get,
+	NotFound,
+	Option,
+	Patch,
+	Post,
+	Put http.Handler
 }
 
 // ServeHTTP implements the http.Handler interface for Method.
@@ -17,7 +18,7 @@ type Method struct {
 // NotFound is used for any missing method.
 // falls back on http.NotFound
 func (m *Method) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var f http.HandlerFunc
+	var f http.Handler
 
 	switch r.Method {
 	case "DELETE":
@@ -26,6 +27,8 @@ func (m *Method) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		f = m.Get
 	case "OPTION":
 		f = m.Option
+	case "PATCH":
+		f = m.Patch
 	case "POST":
 		f = m.Post
 	case "PUT":
@@ -41,8 +44,8 @@ func (m *Method) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if f == nil {
-		f = http.NotFound
+		f = http.NotFoundHandler()
 	}
 
-	f(w, r)
+	f.ServeHTTP(w, r)
 }

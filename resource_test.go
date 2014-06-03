@@ -48,7 +48,7 @@ func TestResource(t *testing.T) {
 }
 
 func TestResource_Form(t *testing.T) {
-	handler := func(w http.ResponseWriter, r *http.Request) {
+	var handler http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "%s %s", r.Form.Get("id"), r.Form.Get("foo"))
 	}
 	rs := &Resource{Show: handler}
@@ -61,7 +61,7 @@ func TestResource_Form(t *testing.T) {
 }
 
 func TestResource_nesting(t *testing.T) {
-	handler := func(w http.ResponseWriter, r *http.Request) {
+	var handler http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "%s %s %s",
 			r.Form.Get("id"),
 			r.Form.Get("posts_id"),
