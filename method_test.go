@@ -7,20 +7,6 @@ import (
 	"testing"
 )
 
-func TestMethod(t *testing.T) {
-	var handler http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "hello!", http.StatusInternalServerError)
-	}
-
-	m := &Method{Get: handler}
-
-	_, body := testMethod(t, "GET", m)
-	assert.Equal(t, "hello!\n", body)
-
-	c, _ := testMethod(t, "POST", m)
-	assert.Equal(t, 404, c)
-}
-
 func TestMethod_Get_Any(t *testing.T) {
 	var getH http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "hello!", http.StatusOK)
@@ -35,9 +21,9 @@ func TestMethod_Get_Any(t *testing.T) {
 	}
 
 	m := &Method{
-		Get:      getH,
-		Any:      anyH,
-		NotFound: notFound,
+		Get:              getH,
+		Any:              anyH,
+		MethodNotAllowed: notFound,
 	}
 
 	_, body := testMethod(t, "GET", m)
@@ -47,28 +33,53 @@ func TestMethod_Get_Any(t *testing.T) {
 	assert.Equal(t, "any\n", body)
 }
 
-func TestMethod_Get_NotFound(t *testing.T) {
+func TestMethod_Get_MethodNotFound(t *testing.T) {
 	var getH http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "hello!", http.StatusOK)
 	}
 
-	var notFound http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "found, it was not", http.StatusNotFound)
+	var putH http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "created!", http.StatusCreated)
 	}
 
 	m := &Method{
-		Get:      getH,
-		NotFound: notFound,
+		Get: getH,
+		Put: putH,
 	}
 
-	_, body := testMethod(t, "GET", m)
-	assert.Equal(t, "hello!\n", body)
+	w := testRequest(t, "GET", m)
+	assert.Equal(t, 200, w.Code)
+	assert.Equal(t, "hello!\n", w.Body.String())
 
-	_, body = testMethod(t, "POST", m)
-	assert.Equal(t, "found, it was not\n", body)
+	w = testRequest(t, "POST", m)
+	assert.Equal(t, 405, w.Code)
+	assert.Equal(t, "405 method not allowed\n", w.Body.String())
+	assert.Equal(t, "GET, PUT", w.HeaderMap.Get("Allow"))
 }
 
-func testMethod(t testing.TB, method string, f http.Handler) (int, string) {
+func TestMethod_Options(t *testing.T) {
+	var getH http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "hello!", http.StatusOK)
+	}
+
+	var putH http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "created!", http.StatusCreated)
+	}
+
+	m := &Method{
+		Get: getH,
+		Put: putH,
+	}
+
+	w := testRequest(t, "OPTIONS", m)
+	assert.Equal(t, 200, w.Code)
+	assert.Equal(t, "", w.Body.String())
+	assert.Equal(t, "GET, PUT", w.HeaderMap.Get("Allow"))
+	// Server implementation apparently takes care of this.
+	// assert.Equal(t, "0", w.HeaderMap.Get("Content-Length"))
+}
+
+func testRequest(t testing.TB, method string, f http.Handler) *httptest.ResponseRecorder {
 	req, err := http.NewRequest(method, "http://example.com/foo", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -76,6 +87,12 @@ func testMethod(t testing.TB, method string, f http.Handler) (int, string) {
 
 	w := httptest.NewRecorder()
 	f.ServeHTTP(w, req)
+
+	return w
+}
+
+func testMethod(t testing.TB, method string, f http.Handler) (int, string) {
+	w := testRequest(t, method, f)
 
 	return w.Code, w.Body.String()
 }

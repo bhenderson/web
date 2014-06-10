@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/bhenderson/web"
+	"log"
 	"net/http"
 	"time"
 )
@@ -21,8 +22,50 @@ func main() {
 	)
 
 	app := http.NewServeMux()
-	app.HandleFunc("/foo", HelloWorld)
+	app.Handle("/foo", &web.Method{
+		Get: http.HandlerFunc(HelloWorld),
+	})
+	app.Handle("/users/", &web.Resource{
+		Index:  http.HandlerFunc(Index),
+		Show:   Lookup(Show),
+		Update: Lookup(Update),
+	})
 
 	http.Handle("/", web.Run(app))
-	http.ListenAndServe(":8080", nil)
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+func Index(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "list of users:\n")
+}
+
+type User struct {
+	ID   string
+	Name string
+}
+
+type UserHandler func(*User) http.HandlerFunc
+
+func Lookup(h UserHandler) web.ResourceHandleFunc {
+	return func(id string) http.Handler {
+		// simulate DB lookup or whatever
+		if id == "abc" {
+			u := &User{id, "John Smith"}
+			return h(u)
+		}
+		// not found
+		return http.NotFoundHandler()
+	}
+}
+
+func Show(u *User) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "Welcome %s!\n", u.Name)
+	}
+}
+
+func Update(u *User) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "User %s was updated!\n", u.Name)
+	}
 }
