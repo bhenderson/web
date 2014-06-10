@@ -118,7 +118,7 @@ func PathParts(r *http.Request) map[int]string {
 		}
 	}
 	if len(path) > 0 {
-		paths[len(paths)] = path[:]
+		paths[len(paths)] = path
 	}
 	return paths
 }
