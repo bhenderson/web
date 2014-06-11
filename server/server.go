@@ -5,18 +5,19 @@ import (
 	"github.com/bhenderson/web"
 	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
 func HelloWorld(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "hello ")
-	time.Sleep(2 * time.Second)
+	time.Sleep(0 * time.Second)
 	fmt.Fprintf(w, "world")
 }
 
 func main() {
 	web.Use(
-		web.Log,
+		web.Log(os.Stdout, web.Combined),
 		web.Flush,
 		web.Head,
 	)
