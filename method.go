@@ -18,7 +18,7 @@ type Method struct {
 	Options,
 	Patch,
 	Post,
-	Put http.Handler
+	Put,
 
 	// Any handler will respond to any method.
 	Any http.Handler
@@ -99,13 +99,12 @@ func setAllowHeader(w http.ResponseWriter, allowed ...string) {
 	w.Header().Set("Allow", strings.Join(allowed, ", "))
 }
 
-func allowedMethods(m *Method) (a []string) {
+func allowedMethods(m *Method) []string {
+	a := make([]string, 0, 6)
+
 	// not including OPTIONS for now, but open to discussion.
 	if m.Delete != nil {
 		a = append(a, "DELETE")
-	}
-	if m.Head != nil {
-		a = append(a, "HEAD")
 	}
 	if m.Get != nil {
 		a = append(a, "GET")
@@ -113,14 +112,17 @@ func allowedMethods(m *Method) (a []string) {
 			a = append(a, "HEAD")
 		}
 	}
-	if m.Put != nil {
-		a = append(a, "PUT")
-	}
-	if m.Post != nil {
-		a = append(a, "POST")
+	if m.Head != nil {
+		a = append(a, "HEAD")
 	}
 	if m.Patch != nil {
 		a = append(a, "PATCH")
 	}
-	return
+	if m.Post != nil {
+		a = append(a, "POST")
+	}
+	if m.Put != nil {
+		a = append(a, "PUT")
+	}
+	return a
 }

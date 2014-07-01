@@ -79,6 +79,55 @@ func TestMethod_Options(t *testing.T) {
 	// assert.Equal(t, "0", w.HeaderMap.Get("Content-Length"))
 }
 
+func TestAllowedMethods(t *testing.T) {
+	handler := &Method{}
+	tests := []struct {
+		msg string
+		m   *Method
+		exp []string
+	}{
+		{
+			"all",
+			&Method{
+				Delete:  handler,
+				Get:     handler,
+				Head:    handler,
+				Options: handler,
+				Patch:   handler,
+				Post:    handler,
+				Put:     handler,
+			},
+			[]string{
+				"DELETE",
+				"GET",
+				"HEAD",
+				"PATCH",
+				"POST",
+				"PUT",
+			},
+		},
+		{
+			"empty",
+			&Method{},
+			[]string{},
+		},
+		{
+			"get as head",
+			&Method{
+				GetAsHead: true,
+				Get:       handler,
+			},
+			[]string{
+				"GET",
+				"HEAD",
+			},
+		},
+	}
+	for _, test := range tests {
+		assert.Equal(t, test.exp, allowedMethods(test.m), test.msg)
+	}
+}
+
 func testRequest(t testing.TB, method string, f http.Handler) *httptest.ResponseRecorder {
 	req, err := http.NewRequest(method, "http://example.com/foo", nil)
 	if err != nil {
@@ -95,11 +144,4 @@ func testMethod(t testing.TB, method string, f http.Handler) (int, string) {
 	w := testRequest(t, method, f)
 
 	return w.Code, w.Body.String()
-}
-
-func ExampleMethod() {
-	http.Handle("/", &Method{
-		Get:  getFooHandler,
-		Post: postFooHandler,
-	})
 }
