@@ -17,6 +17,8 @@ var (
 	}
 
 	dash = "-"
+
+	defaultTmpl = template.New("log").Funcs(FuncMap)
 )
 
 const (
@@ -25,6 +27,11 @@ const (
 
 	// combined log format used by Apache: httpd.apache.org/docs/2.2/logs.html
 	Combined = Common + ` "{{.Referer}}" "{{.UserAgent}}"`
+)
+
+var (
+	_ = template.Must(defaultTmpl.Parse(Common))
+	_ = template.Must(defaultTmpl.Parse(Combined))
 )
 
 // Logger is used internally to track the request/response information, but is
@@ -91,16 +98,23 @@ func (lw *logWriter) Write(p []byte) (int, error) {
 	return lw.ResponseWriter.Write(p)
 }
 
-// LogMiddleware implements web.Middleware. It takes an io.Writer and template
-// string and returns a Middleware which will log the request. See Common and
-// Combined for some predefined templates.  See Logger for available fields and
-// methods. LogMiddleware panics if template does not compile. If an error is
-// returned from the template, that error will be logged to the default logger.
+// LogMiddleware takes an io.Writer and template string and returns a
+// web.Middleware which will log the request. See Common and Combined for some
+// predefined templates. See Logger for available fields and methods.
+// LogMiddleware panics if template does not compile. If an error is returned
+// from the template, that error will be logged to the default logger.
 func LogMiddleware(out io.Writer, t string) func(http.Handler) http.HandlerFunc {
 	if out == nil {
 		out = os.Stdout
 	}
-	tmp := template.Must(template.New("log").Funcs(FuncMap).Parse(t))
+	// add newline to template string if not there.
+	// We can't just write a newline after the template executes because it
+	// needs to be automic.
+	if len(t) > 0 && t[len(t)-1] != '\n' {
+		t = t + "\n"
+	}
+	tmp := template.Must(defaultTmpl.Parse(t))
+
 	return func(next http.Handler) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			lgr := &Logger{
@@ -114,7 +128,6 @@ func LogMiddleware(out io.Writer, t string) func(http.Handler) http.HandlerFunc 
 			next.ServeHTTP(w, r)
 
 			err := tmp.Execute(out, lgr)
-			out.Write([]byte("\n"))
 			if err != nil {
 				log.Println(err)
 			}

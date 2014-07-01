@@ -18,7 +18,7 @@ type Method struct {
 	Options,
 	Patch,
 	Post,
-	Put,
+	Put http.Handler
 
 	// Any handler will respond to any method.
 	Any http.Handler
