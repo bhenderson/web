@@ -1,4 +1,4 @@
-package web
+package flush
 
 import (
 // "github.com/stretchr/testify/assert"

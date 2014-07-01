@@ -1,4 +1,4 @@
-package web
+package flush
 
 import "net/http"
 
@@ -14,8 +14,9 @@ func (fw *flushWriter) Write(p []byte) (int, error) {
 	return fw.ResponseWriter.Write(p)
 }
 
-// Flush implements Middleware
-func Flush(next http.Handler) http.HandlerFunc {
+// FlushMiddleware implements web.Middleware. It tries to flush the underlying
+// writer on every write.
+func FlushMiddleware(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w = &flushWriter{w}
 		next.ServeHTTP(w, r)

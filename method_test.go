@@ -96,3 +96,10 @@ func testMethod(t testing.TB, method string, f http.Handler) (int, string) {
 
 	return w.Code, w.Body.String()
 }
+
+func ExampleMethod() {
+	http.Handle("/", &Method{
+		Get:  getFooHandler,
+		Post: postFooHandler,
+	})
+}

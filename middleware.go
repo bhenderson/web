@@ -3,6 +3,10 @@ package web
 import (
 	"io"
 	"net/http"
+
+	"github.com/bhenderson/web/flush"
+	"github.com/bhenderson/web/head"
+	"github.com/bhenderson/web/log"
 )
 
 // return a HandlerFunc because that's the common use case.
@@ -52,16 +56,17 @@ func wrapMiddleware(mid Middleware, next http.Handler) http.HandlerFunc {
 
 var defaultStack = &Stack{}
 
+// Use adds Middleware to the default stack.
 func Use(ms ...Middleware) {
 	defaultStack.Use(ms...)
 }
 
-// http.Handle("/", web.Run(app))
+// Run compiles the default stack of middleware and returns an http.Handler.
 func Run(app http.Handler) http.Handler {
 	return defaultStack.Run(app)
 }
 
-// all the extra methods that http.response has :/
+// Plusser is an interface for all the extra methods that http.response has :/
 type Plusser interface {
 	http.CloseNotifier
 	http.Flusher
@@ -84,4 +89,25 @@ func WrapResponseWriter(wn, wr http.ResponseWriter) http.ResponseWriter {
 		return &responseWriterPlus{wn, wp}
 	}
 	return wn
+}
+
+const (
+	// Log formats
+	CombinedLog = log.Combined
+	CommonLog   = log.Common
+)
+
+// Flush implements Middleware. See flush.FlushMiddleware for usage.
+func Flush(next http.Handler) http.HandlerFunc {
+	return flush.FlushMiddleware(next)
+}
+
+// Head implements Middleware. See head.HeadMiddleware for usage.
+func Head(next http.Handler) http.HandlerFunc {
+	return head.HeadMiddleware(next)
+}
+
+// Log returns a Middleware. See log.LogMiddleware for usage.
+func Log(w io.Writer, t string) Middleware {
+	return log.LogMiddleware(w, t)
 }

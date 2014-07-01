@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+// Method is an http.Handler that routes requests according to the HTTP verb.
 type Method struct {
 	// GetAsHead sets the Get handler to be used for HEAD requests if the Head
 	// handler is not defined.

@@ -1,6 +1,7 @@
-package web
+package log
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -26,10 +27,20 @@ const (
 	Combined = Common + ` "{{.Referer}}" "{{.UserAgent}}"`
 )
 
+// Logger is used internally to track the request/response information, but is
+// exported for documentation purposes. Public methods/fields on Logger are
+// available in the template.
 type Logger struct {
+	// The original request
 	*http.Request
-	Time          time.Time
-	Status        int
+
+	// The start time of the request.
+	Time time.Time
+
+	// The status of the response
+	Status int
+
+	// The content length of the response. See ContentSize
 	ContentLength int
 }
 
@@ -80,10 +91,12 @@ func (lw *logWriter) Write(p []byte) (int, error) {
 	return lw.ResponseWriter.Write(p)
 }
 
-// Log takes an io.Writer and template string and returns a Middleware which
-// will log the request. See Common and Combined for some predefined templates.
-// See Logger for available fields and methods.
-func Log(out io.Writer, t string) Middleware {
+// LogMiddleware implements web.Middleware. It takes an io.Writer and template
+// string and returns a Middleware which will log the request. See Common and
+// Combined for some predefined templates.  See Logger for available fields and
+// methods. LogMiddleware panics if template does not compile. If an error is
+// returned from the template, that error will be logged to the default logger.
+func LogMiddleware(out io.Writer, t string) func(http.Handler) http.HandlerFunc {
 	if out == nil {
 		out = os.Stdout
 	}
