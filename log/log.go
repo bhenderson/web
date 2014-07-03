@@ -17,9 +17,14 @@ var (
 	}
 
 	dash = "-"
-
-	defaultTmpl = template.New("log").Funcs(FuncMap)
 )
+
+// internal devNull io.Writer
+type devNull int
+
+func (devNull) Write(p []byte) (int, error) {
+	return len(p), nil
+}
 
 const (
 	// common log format used by Apache: httpd.apache.org/docs/2.2/logs.html
@@ -29,9 +34,16 @@ const (
 	Combined = Common + ` "{{.Referer}}" "{{.UserAgent}}"`
 )
 
+func defaultTmp() *template.Template {
+	return template.New("log").Funcs(FuncMap)
+}
+
 var (
-	_ = template.Must(defaultTmpl.Parse(Common))
-	_ = template.Must(defaultTmpl.Parse(Combined))
+	discard     = devNull(0)
+	blankLogger = &Logger{Request: &http.Request{}}
+	// make sure the templates work
+	_ = template.Must(defaultTmp().Parse(Common)).Execute(discard, blankLogger)
+	_ = template.Must(defaultTmp().Parse(Combined)).Execute(discard, blankLogger)
 )
 
 // Logger is used internally to track the request/response information, but is
@@ -53,8 +65,10 @@ type Logger struct {
 
 // Username returns the Username or a "-"
 func (l *Logger) Username() string {
-	if u := l.URL.User; u != nil {
-		return u.Username()
+	if l.URL != nil {
+		if u := l.URL.User; u != nil {
+			return u.Username()
+		}
 	}
 	return dash
 }
@@ -94,6 +108,9 @@ func (lw *logWriter) WriteHeader(code int) {
 }
 
 func (lw *logWriter) Write(p []byte) (int, error) {
+	if lw.logger.Status <= 0 {
+		lw.logger.Status = http.StatusOK
+	}
 	lw.logger.ContentLength += len(p)
 	return lw.ResponseWriter.Write(p)
 }
@@ -113,7 +130,11 @@ func LogMiddleware(out io.Writer, t string) func(http.Handler) http.HandlerFunc 
 	if len(t) > 0 && t[len(t)-1] != '\n' {
 		t = t + "\n"
 	}
-	tmp := template.Must(defaultTmpl.Parse(t))
+	tmp := template.Must(defaultTmp().Parse(t))
+	// check template methods
+	if err := tmp.Execute(discard, blankLogger); err != nil {
+		panic(err)
+	}
 
 	return func(next http.Handler) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
