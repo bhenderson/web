@@ -40,7 +40,7 @@ func defaultTmp() *template.Template {
 
 var (
 	discard     = devNull(0)
-	blankLogger = &Logger{Request: &http.Request{}}
+	blankLogger = &Logger{Request: http.Request{}}
 	// make sure the templates work
 	_ = template.Must(defaultTmp().Parse(Common)).Execute(discard, blankLogger)
 	_ = template.Must(defaultTmp().Parse(Combined)).Execute(discard, blankLogger)
@@ -50,8 +50,8 @@ var (
 // exported for documentation purposes. Public methods/fields on Logger are
 // available in the template.
 type Logger struct {
-	// The original request
-	*http.Request
+	// A copy of the original request
+	http.Request
 
 	// The start time of the request.
 	Time time.Time
@@ -138,8 +138,11 @@ func LogMiddleware(out io.Writer, t string) func(http.Handler) http.HandlerFunc 
 
 	return func(next http.Handler) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
+			// read only (does it matter?)
+			// I guess this is just a shallow copy...
+			copyR := *r
 			lgr := &Logger{
-				r,
+				copyR,
 				time.Now(),
 				http.StatusOK,
 				0,
