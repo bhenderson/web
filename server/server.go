@@ -17,7 +17,7 @@ func HelloWorld(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	web.Use(
-		web.Log(os.Stdout, web.Combined),
+		web.Log(os.Stdout, web.CombinedLog),
 		web.Flush,
 		web.Head,
 	)

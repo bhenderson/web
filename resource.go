@@ -2,12 +2,13 @@ package web
 
 import (
 	"net/http"
+	"strings"
 )
 
 type ResourceHandleFunc func(string) http.Handler
 
 func (rhf ResourceHandleFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	paths := PathParts(r)
+	paths := PathParts(r.URL.Path)
 	var id string
 	if len(paths) > 1 {
 		id = paths[1]
@@ -16,9 +17,6 @@ func (rhf ResourceHandleFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 }
 
 type Resource struct {
-	// FormID (default "id") is the resource id key to be set in the params.
-	FormID string
-
 	// Handlers for a resource.
 	// Index   -> GET /prefix/
 	// Create  -> POST /prefix/
@@ -50,12 +48,7 @@ type Resource struct {
 func (rs *Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	buildResource(rs)
 
-	paths := PathParts(r)
-
-	if len(paths) < 1 {
-		rs.NotFound.ServeHTTP(w, r)
-		return
-	}
+	paths := PathParts(r.URL.Path)
 
 	// no resource id
 	if len(paths) < 2 {
@@ -72,16 +65,10 @@ func (rs *Resource) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	r.ParseForm()
-	r.Form.Set(rs.FormID, paths[1])
-
 	rs.method.ServeHTTP(w, r)
 }
 
 func buildResource(rs *Resource) {
-	if rs.FormID == "" {
-		rs.FormID = "id"
-	}
 	if rs.NotFound == nil {
 		rs.NotFound = http.NotFoundHandler()
 	}
@@ -103,22 +90,15 @@ func buildResource(rs *Resource) {
 	}
 }
 
-func PathParts(r *http.Request) map[int]string {
-	path := r.URL.Path
-	paths := make(map[int]string)
-
+// PathParts removes leading and trailing slash, then splits on slash
+func PathParts(path string) []string {
+	// removing leading /
 	if path[0] == '/' {
 		path = path[1:]
 	}
-	for i := 0; i < len(path); i++ {
-		if path[i] == '/' {
-			paths[len(paths)] = path[:i]
-			path = path[i+1:]
-			i = -1
-		}
+	// remove trailing /
+	if path[len(path)-1] == '/' {
+		path = path[:len(path)-1]
 	}
-	if len(path) > 0 {
-		paths[len(paths)] = path
-	}
-	return paths
+	return strings.Split(path, "/")
 }

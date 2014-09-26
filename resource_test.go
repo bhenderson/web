@@ -53,47 +53,27 @@ func TestResource(t *testing.T) {
 	assert.Equal(t, 405, c)
 }
 
-func TestResource_Form(t *testing.T) {
-	var handler http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "%s %s", r.Form.Get("id"), r.Form.Get("foo"))
-	}
-	rs := &Resource{Show: handler}
-
-	c, body := testResource(t, "GET", "/users/joe.smith?id=shouldnotoverride&foo=bar", rs)
-	assert.Equal(t, 200, c)
-	assert.Equal(t, "joe.smith bar", body)
-
-	c, _ = testResource(t, "POST", "/users/1", rs)
-	assert.Equal(t, 405, c)
-}
-
 func TestParseComponents(t *testing.T) {
 	tests := []struct {
 		path string
-		exp  map[int]string
+		exp  []string
 	}{
 		{
-			"/",
-			map[int]string{},
-		},
-		{
 			"/abc",
-			map[int]string{0: "abc"},
+			[]string{"abc"},
 		},
 		{
 			"/a/bc/cde",
-			map[int]string{0: "a", 1: "bc", 2: "cde"},
+			[]string{"a", "bc", "cde"},
 		},
 		{
 			"/a/bc/cde/",
-			map[int]string{0: "a", 1: "bc", 2: "cde"},
+			[]string{"a", "bc", "cde"},
 		},
 	}
 
-	r, _ := http.NewRequest("GET", "", nil)
 	for _, test := range tests {
-		r.URL.Path = test.path
-		paths := PathParts(r)
+		paths := PathParts(test.path)
 		assert.Equal(t, test.exp, paths)
 	}
 }
