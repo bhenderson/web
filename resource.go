@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+// ResourceHandleFunc is a function that will be given the second path element.
+// ResourceHandleFunc is itself an http.Handler.
 type ResourceHandleFunc func(string) http.Handler
 
 func (rhf ResourceHandleFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {

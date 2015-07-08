@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/bhenderson/web"
 	"log"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/bhenderson/web"
 )
 
 func HelloWorld(w http.ResponseWriter, r *http.Request) {
@@ -32,6 +33,7 @@ func main() {
 		Update: Lookup(Update),
 	})
 
+	// 404 any other endpoints
 	http.Handle("/", web.Run(app))
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
