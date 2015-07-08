@@ -23,7 +23,7 @@ func Example() {
 
 	// Use net/http to handle routing. Method sets up specific handlers
 	// for specific HTTP methods.
-	http.Handle("/", &Method{
+	http.Handle("/", &web.Method{
 		Get: hello(),
 	})
 
