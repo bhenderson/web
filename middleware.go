@@ -45,7 +45,7 @@ func (s *Stack) Run(app http.Handler) (f http.Handler) {
 func wrapMiddleware(mid Middleware, next http.Handler) http.HandlerFunc {
 	// We wrap the next handler in our own handler so we can wrap the
 	// response writer, making it so middleware writers don't have to
-	// worry about losing Plusser methods.
+	// worry about losing plusser methods.
 	return func(w http.ResponseWriter, r *http.Request) {
 		m := http.HandlerFunc(func(wr http.ResponseWriter, re *http.Request) {
 			wr = WrapResponseWriter(wr, w)
@@ -67,29 +67,13 @@ func Run(app http.Handler) http.Handler {
 	return defaultStack.Run(app)
 }
 
-// Plusser is an interface for all the extra methods that http.response has :/
-type Plusser interface {
-	http.CloseNotifier
-	http.Flusher
-	http.Hijacker
-	io.ReaderFrom
-}
-
-// responseWriterPlus implements http.ResponseWriter *and* all the extra
-// methods that http.response exposes.
-type responseWriterPlus struct {
-	http.ResponseWriter
-	Plusser
-}
+//go:generate go run genplusser.go
 
 // WrapResponseWriter takes an http.ResponseWriter (wr) and wraps it with the
 // functionality provided by wn. The return value tries hard to implement any
 // extra methods that wr might also implement.
 func WrapResponseWriter(wn, wr http.ResponseWriter) http.ResponseWriter {
-	if wp, ok := wr.(Plusser); ok {
-		return &responseWriterPlus{wn, wp}
-	}
-	return wn
+	return newPlusser(wn, wr)
 }
 
 const (
