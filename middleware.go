@@ -7,6 +7,7 @@ import (
 	"github.com/bhenderson/web/flush"
 	"github.com/bhenderson/web/head"
 	"github.com/bhenderson/web/log"
+	"github.com/bhenderson/web/session"
 )
 
 // return a HandlerFunc because that's the common use case.
@@ -110,4 +111,8 @@ func Head(next http.Handler) http.HandlerFunc {
 // Log returns a Middleware. See log.LogMiddleware for usage.
 func Log(w io.Writer, t string) Middleware {
 	return log.LogMiddleware(w, t)
+}
+
+func Session(secret, name string) Middleware {
+	return session.SessionMiddleware(secret, name)
 }
