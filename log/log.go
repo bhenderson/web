@@ -105,6 +105,13 @@ func (l *Logger) ContentSize() string {
 	return fmt.Sprintf("%d", l.ContentLength)
 }
 
+// Since returns the elapsed time of the request in nanoseconds.
+// Suggested usage:
+//	"{{.Since.Seconds}}s"
+func (l *Logger) Since() time.Duration {
+	return time.Since(l.Time)
+}
+
 type logWriter struct {
 	http.ResponseWriter
 	logger *Logger
