@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"text/template"
@@ -79,16 +80,11 @@ func (l *Logger) Username() string {
 
 // RemoteAddr wraps Request.RemoteAddr to remove the port. If not available, this value will be a "-"
 func (l *Logger) RemoteAddr() string {
-	addr := l.Request.RemoteAddr
-	for i := 0; i < len(addr); i++ {
-		if addr[i] == ':' {
-			addr = addr[:i]
-		}
-	}
-	if len(addr) == 0 {
+	host, _, err := net.SplitHostPort(l.Request.RemoteAddr)
+	if err != nil {
 		return dash
 	}
-	return addr
+	return host
 }
 
 func (l *Logger) RequestLine() string {
