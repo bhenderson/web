@@ -28,7 +28,7 @@ func (devNull) Write(p []byte) (int, error) {
 
 const (
 	// common log format used by Apache: httpd.apache.org/docs/2.2/logs.html
-	Common = `{{.RemoteAddr}} - {{.Username}} [{{ftime .Time "02/Jan/2006:15:04:05 -0700"}}] "{{.Method}} {{.RequestURI}} {{.Proto}}" {{.Status}} {{.ContentSize}}`
+	Common = `{{.RemoteAddr}} - {{.Username}} [{{.LocalTime}}] "{{.RequestLine}}" {{.Status}} {{.ContentSize}}`
 
 	// combined log format used by Apache: httpd.apache.org/docs/2.2/logs.html
 	Combined = Common + ` "{{.Referer}}" "{{.UserAgent}}"`
@@ -63,6 +63,10 @@ type Logger struct {
 	ContentLength int
 }
 
+func (l *Logger) LocalTime() string {
+	return l.Time.Format("02/Jan/2006:15:04:05 -0700")
+}
+
 // Username returns the Username or a "-"
 func (l *Logger) Username() string {
 	if l.URL != nil {
@@ -85,6 +89,10 @@ func (l *Logger) RemoteAddr() string {
 		return dash
 	}
 	return addr
+}
+
+func (l *Logger) RequestLine() string {
+	return fmt.Sprintf("%s %s %s", l.Method, l.RequestURI, l.Proto)
 }
 
 // ContentSize tries to return the content byte size returned to the client not
