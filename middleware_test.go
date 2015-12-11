@@ -66,17 +66,19 @@ func TestTestResponse(t *testing.T) {
 	}
 }
 
-func TestPlusserInMiddleware(t *testing.T) {
-	var b bool
+func TestMiddleware(t *testing.T) {
+	var isPlusser, midInit, midCalled bool
 	var app http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
-		_, b = w.(Plusser)
+		_, isPlusser = w.(plusser0)
 	}
 	s := Stack{}
 
 	// a middleware that wraps it's own ResponseWriter, demonstrating how
 	// easy it is to lose extra methods.
 	mid := func(next http.Handler) http.HandlerFunc {
+		midInit = true
 		return func(w http.ResponseWriter, r *http.Request) {
+			midCalled = true
 			w = &struct{ http.ResponseWriter }{w}
 			next.ServeHTTP(w, r)
 		}
@@ -87,9 +89,19 @@ func TestPlusserInMiddleware(t *testing.T) {
 	tr := NewTestResponse()
 	req := &http.Request{}
 	req.URL = &url.URL{}
-	s.Run(app).ServeHTTP(tr, req)
+	h := s.Run(app)
 
-	if !b {
-		t.Fatal("expected ResponseWriter to maintain Plusser")
+	if !midInit {
+		t.Error("expected middleware to be initialized at Run.")
+	}
+
+	h.ServeHTTP(tr, req)
+
+	if !midCalled {
+		t.Error("expected middleware to get called.")
+	}
+
+	if !isPlusser {
+		t.Error("expected ResponseWriter to maintain Plusser")
 	}
 }

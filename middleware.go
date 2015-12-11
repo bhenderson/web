@@ -42,17 +42,32 @@ func (s *Stack) Run(app http.Handler) (f http.Handler) {
 	return
 }
 
+type wrappedHandler struct {
+	next http.Handler
+	hf   http.HandlerFunc
+	w    http.ResponseWriter
+}
+
+func (h *wrappedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if h.w == nil {
+		h.w = w
+		h.hf(w, r)
+		return
+	}
+	w = WrapResponseWriter(w, h.w)
+	h.next.ServeHTTP(w, r)
+}
+
 func wrapMiddleware(mid Middleware, next http.Handler) http.HandlerFunc {
 	// We wrap the next handler in our own handler so we can wrap the
 	// response writer, making it so middleware writers don't have to
 	// worry about losing plusser methods.
-	return func(w http.ResponseWriter, r *http.Request) {
-		m := http.HandlerFunc(func(wr http.ResponseWriter, re *http.Request) {
-			wr = WrapResponseWriter(wr, w)
-			next.ServeHTTP(wr, re)
-		})
-		mid(m).ServeHTTP(w, r)
-	}
+	wr := &wrappedHandler{}
+
+	wr.next = next
+	wr.hf = mid(wr)
+
+	return wr.ServeHTTP
 }
 
 var defaultStack = &Stack{}
