@@ -79,7 +79,8 @@ func TestMiddleware(t *testing.T) {
 		midInit = true
 		return func(w http.ResponseWriter, r *http.Request) {
 			midCalled = true
-			w = &struct{ http.ResponseWriter }{w}
+			nw := &struct{ http.ResponseWriter }{w}
+			w = WrapResponseWriter(nw, w)
 			next.ServeHTTP(w, r)
 		}
 	}

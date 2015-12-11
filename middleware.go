@@ -35,9 +35,9 @@ func (s *Stack) Run(app http.Handler) (f http.Handler) {
 	// reverse
 	for i := len(ms) - 1; i >= 0; i-- {
 		// The simple case
-		// f = ms[i](f)
+		f = ms[i](f)
 
-		f = wrapMiddleware(ms[i], f)
+		// f = wrapMiddleware(ms[i], f)
 	}
 	return
 }
