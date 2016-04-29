@@ -111,6 +111,10 @@ func (r *Router) Location(kind, path string, h http.Handler) {
 	}
 }
 
+func (r *Router) LocationFunc(kind, path string, h http.HandlerFunc) {
+	r.Location(kind, path, h)
+}
+
 // LocationExact matches the URL Path exactly. Route processing immediately
 // stops.
 //
