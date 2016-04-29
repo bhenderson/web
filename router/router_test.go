@@ -13,24 +13,40 @@ var config string
 type testHandler string
 
 func (t testHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	config = string(t)
+	fmt.Println(t)
 }
 
-func TestLocation(t *testing.T) {
+func ExampleRouter_Location() {
 	r := NewRouter()
 
+	// testHandler outputs the string when called
 	r.Location("=", "/", testHandler("A"))
 	r.Location("", "/", testHandler("B"))
 	r.Location("", "/documents/", testHandler("C"))
 	r.Location("^~", "/images/", testHandler("D"))
 	r.Location("~*", `\.(gif|jpg|jpeg)$`, testHandler("E"))
 
-	assertMatch(t, r, "/", "A")
-	assertMatch(t, r, "/index.html", "B")
-	assertMatch(t, r, "/documents/document.html", "C")
-	assertMatch(t, r, "/images/1.gif", "D")
-	assertMatch(t, r, "/documents/1.jpg", "E")
-	assertMatch(t, r, "/documents/1.JPG", "E")
+	// serve builds a *http.Request and calls r.ServeHTTP
+	serve(r, "/")
+	serve(r, "/index.html")
+	serve(r, "/documents/document.html")
+	serve(r, "/images/1.gif")
+	serve(r, "/documents/1.jpg")
+	serve(r, "/documents/1.JPG")
+	// Output:
+	// A
+	// B
+	// C
+	// D
+	// E
+	// E
+}
+
+func serve(r *Router, path string) *httptest.ResponseRecorder {
+	req, _ := http.NewRequest("GET", path, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	return w
 }
 
 type testCapture struct {
@@ -71,9 +87,7 @@ func TestNotFound(t *testing.T) {
 	assertMatch(t, r, "/foobar", "route not found")
 
 	r.NotFound = nil
-	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/barfoo", nil)
-	r.ServeHTTP(w, req)
+	w := serve(r, "/barfoo")
 
 	assertEqual(t, "404 page not found\n", w.Body.String())
 }
@@ -99,8 +113,7 @@ func assertPanic(t *testing.T, exp interface{}, f func()) {
 
 func assertMatch(t *testing.T, r *Router, path, exp string) {
 	config = ""
-	req, _ := http.NewRequest("GET", path, nil)
-	r.ServeHTTP(nil, req)
+	serve(r, path)
 	assertEqual(t, exp, config)
 }
 

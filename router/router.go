@@ -16,6 +16,8 @@ func NewRouter() *Router {
 }
 
 type Router struct {
+	// NotFound handles the case when no location matches. Defaults to
+	// http.NotFound
 	NotFound http.HandlerFunc
 
 	locations []locationHandler
@@ -79,6 +81,14 @@ func (r *Router) match(req *http.Request) (lp *locationHandler) {
 	return lp
 }
 
+// Location takes similar parameters to nginx Location directive (see package docs.)
+/*
+	=  LocationExact
+	~  LocationRegexp
+	~* LocationRegexp (?i)
+	^~ LocationPrefix (stop regexp matching)
+	"" Location (prefix matching)
+*/
 func (r *Router) Location(kind, path string, h http.Handler) {
 	switch kind {
 	case "=":
@@ -101,6 +111,10 @@ func (r *Router) Location(kind, path string, h http.Handler) {
 	}
 }
 
+// LocationExact matches the URL Path exactly. Route processing immediately
+// stops.
+//
+// Same as Location("=", path, h)
 func (r *Router) LocationExact(path string, h http.Handler) {
 	r.locations = append(r.locations, locationHandler{
 		location: path,
@@ -110,6 +124,8 @@ func (r *Router) LocationExact(path string, h http.Handler) {
 }
 
 // LocationPrefix mataches the beginning of the url path and skips regexps after longest match.
+//
+// Same as Location("^~", path, h)
 func (r *Router) LocationPrefix(path string, h http.Handler) {
 	r.locations = append(r.locations, locationHandler{
 		location: path,
@@ -118,6 +134,10 @@ func (r *Router) LocationPrefix(path string, h http.Handler) {
 	})
 }
 
+// LocationRegexp matches the URL Path against the regexp.
+//
+// Same as Location("~", path, h)
+// To get case-insensitive matching, compile your regexp with (?i).
 func (r *Router) LocationRegexp(path *regexp.Regexp, h http.Handler) {
 	r.regexps = append(r.regexps, locationHandler{
 		regexp:   path,
@@ -126,9 +146,9 @@ func (r *Router) LocationRegexp(path *regexp.Regexp, h http.Handler) {
 	})
 }
 
-// Params returns the capture groups. If the cached version is not found,
-// request processing is re-run to find the params. This is only the case if
-// called outside r.ServeHTTP (like in a go routine).
+// Params returns the capture groups of a regexp location. If the cached
+// version is not found, request processing is re-run to find the params. This
+// is only the case if called outside r.ServeHTTP (like in a go routine).
 func (r *Router) Params(req *http.Request) Params {
 	if l, ok := r.requests[req]; ok {
 		return l.params()
@@ -159,21 +179,22 @@ func (h locationHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // takes care to return a copy
 func (h locationHandler) match(r *http.Request) *locationHandler {
 	path := r.URL.Path
-	if h.exact && h.location == path {
-		nh := h
-		return &nh
+	if h.exact {
+		if h.location == path {
+			return &h
+		} else {
+			return nil
+		}
 	}
 
 	if h.regexp == nil {
-		if !h.exact && len(path) >= len(h.location) && path[:len(h.location)] == h.location {
-			nh := h
-			return &nh
+		if len(path) >= len(h.location) && path[:len(h.location)] == h.location {
+			return &h
 		}
 	} else {
 		if res := h.regexp.FindStringSubmatch(path); len(res) > 0 {
-			nh := h
-			nh.capResults = res[1:]
-			return &nh
+			h.capResults = res[1:]
+			return &h
 		}
 	}
 	return nil
@@ -192,4 +213,13 @@ type Params []Param
 type Param struct {
 	Key   string
 	Value string
+}
+
+func (ps Params) ByName(name string) (value string) {
+	for _, p := range ps {
+		if p.Key == name {
+			return p.Value
+		}
+	}
+	return ""
 }
