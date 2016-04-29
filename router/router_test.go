@@ -30,6 +30,7 @@ func TestLocation(t *testing.T) {
 	assertMatch(t, r, "/documents/document.html", "C")
 	assertMatch(t, r, "/images/1.gif", "D")
 	assertMatch(t, r, "/documents/1.jpg", "E")
+	assertMatch(t, r, "/documents/1.JPG", "E")
 }
 
 type testCapture struct {
@@ -75,6 +76,25 @@ func TestNotFound(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assertEqual(t, "404 page not found\n", w.Body.String())
+}
+
+func TestPanic(t *testing.T) {
+	r := NewRouter()
+
+	assertPanic(t, `"foo" is not supported`, func() {
+		r.Location("foo", "/path", nil)
+	})
+
+	assertPanic(t, "regexp: Compile(`[bad regex`): error parsing regexp: missing closing ]: `[bad regex`", func() {
+		r.Location("~", "[bad regex", nil)
+	})
+}
+
+func assertPanic(t *testing.T, exp interface{}, f func()) {
+	defer func() {
+		assertEqual(t, exp, recover())
+	}()
+	f()
 }
 
 func assertMatch(t *testing.T, r *Router, path, exp string) {
