@@ -16,6 +16,8 @@ func NewRouter() *Router {
 }
 
 type Router struct {
+	NotFound http.HandlerFunc
+
 	locations []locationHandler
 	regexps   []locationHandler
 
@@ -31,6 +33,8 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	h := r.match(req)
 	if h != nil {
 		h.ServeHTTP(w, req)
+	} else if r.NotFound != nil {
+		r.NotFound(w, req)
 	} else {
 		http.NotFound(w, req)
 	}

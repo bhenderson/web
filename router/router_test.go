@@ -3,6 +3,7 @@ package router
 import (
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"testing"
 )
@@ -54,6 +55,26 @@ func TestCaptures(t *testing.T) {
 	act := r.Params(req)
 	exp := Params{{"format", "jpg"}}
 	assertEqual(t, exp, act)
+}
+
+func TestNotFound(t *testing.T) {
+	r := NewRouter()
+	r.NotFound = func(w http.ResponseWriter, r *http.Request) {
+		config = "route not found"
+	}
+
+	tc := testCapture{r}
+
+	r.Location("~*", `\.(?P<format>gif|jpg|jpeg)$`, tc)
+
+	assertMatch(t, r, "/foobar", "route not found")
+
+	r.NotFound = nil
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/barfoo", nil)
+	r.ServeHTTP(w, req)
+
+	assertEqual(t, "404 page not found\n", w.Body.String())
 }
 
 func assertMatch(t *testing.T, r *Router, path, exp string) {
