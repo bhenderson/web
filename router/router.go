@@ -20,19 +20,23 @@ type Router struct {
 	regexps   []locationHandler
 
 	requests map[*http.Request]locationHandler
-	captures Params
 }
 
-func (rr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h := rr.match(r)
+func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	defer func() {
+		// cleanup r.requests after processing.
+		delete(r.requests, req)
+	}()
+
+	h := r.match(req)
 	if h != nil {
-		h.ServeHTTP(w, r)
+		h.ServeHTTP(w, req)
 	} else {
-		http.NotFound(w, r)
+		http.NotFound(w, req)
 	}
 }
 
-func (rr *Router) match(r *http.Request) (h http.Handler) {
+func (r *Router) match(req *http.Request) (h http.Handler) {
 	// Check priority, but maintain order. This lets applications configure
 	// "popular" routes.
 
@@ -43,8 +47,8 @@ func (rr *Router) match(r *http.Request) (h http.Handler) {
 
 	var l locationHandler
 	found := false
-	for _, nl := range rr.locations {
-		if nl.match(r) {
+	for _, nl := range r.locations {
+		if nl.match(req) != nil {
 			found = true
 			// return exact matches right away
 			if nl.exact {
@@ -61,9 +65,10 @@ func (rr *Router) match(r *http.Request) (h http.Handler) {
 		return l
 	}
 
-	for _, nl := range rr.regexps {
-		if nl.match(r) {
-			return nl
+	for _, nl := range r.regexps {
+		if lp := nl.match(req); lp != nil {
+			r.requests[req] = *lp
+			return *lp
 		}
 	}
 
@@ -112,40 +117,67 @@ func (r *Router) LocationPrefix(path string, h http.Handler) {
 
 func (r *Router) LocationRegexp(path *regexp.Regexp, h http.Handler) {
 	r.regexps = append(r.regexps, locationHandler{
-		regexp:  path,
-		handler: h,
+		regexp:   path,
+		capNames: path.SubexpNames()[1:],
+		handler:  h,
 	})
+}
+
+// Params returns the cached capture groups. Only available while the main
+// ServeHTTP function is running (be careful spawning go routines that need to
+// lookup this value later.)
+func (r *Router) Params(req *http.Request) Params {
+	if l, ok := r.requests[req]; ok {
+		return l.params()
+	}
+	return nil
 }
 
 type locationHandler struct {
 	location string
 	exact    bool
 	notRegex bool
-	regexp   *regexp.Regexp
-	handler  http.Handler
+
+	regexp               *regexp.Regexp
+	capNames, capResults []string
+
+	handler http.Handler
 }
 
 func (h locationHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.handler.ServeHTTP(w, r)
 }
 
-func (h locationHandler) match(r *http.Request) bool {
+// match needs to return a pointer in the case of modifying capResults
+// takes care to return a copy
+func (h locationHandler) match(r *http.Request) *locationHandler {
 	path := r.URL.Path
 	if h.exact && h.location == path {
-		return true
+		nh := h
+		return &nh
 	}
 
 	if h.regexp == nil {
 		if !h.exact && len(path) >= len(h.location) && path[:len(h.location)] == h.location {
-			return true
+			nh := h
+			return &nh
 		}
 	} else {
 		if res := h.regexp.FindStringSubmatch(path); len(res) > 0 {
-			// TODO store capture groups
-			return true
+			nh := h
+			nh.capResults = res[1:]
+			return &nh
 		}
 	}
-	return false
+	return nil
+}
+
+func (h locationHandler) params() (p Params) {
+	// capNames and capResults will always be the same size
+	for i, k := range h.capNames {
+		p = append(p, Param{k, h.capResults[i]})
+	}
+	return
 }
 
 type Params []Param
