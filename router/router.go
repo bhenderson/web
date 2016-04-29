@@ -11,7 +11,7 @@ import (
 
 func NewRouter() *Router {
 	return &Router{
-		requests: make(map[*http.Request]locationHandler),
+		requests: make(map[*http.Request]*locationHandler),
 	}
 }
 
@@ -19,7 +19,7 @@ type Router struct {
 	locations []locationHandler
 	regexps   []locationHandler
 
-	requests map[*http.Request]locationHandler
+	requests map[*http.Request]*locationHandler
 }
 
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -36,7 +36,7 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (r *Router) match(req *http.Request) (h http.Handler) {
+func (r *Router) match(req *http.Request) (lp *locationHandler) {
 	// Check priority, but maintain order. This lets applications configure
 	// "popular" routes.
 
@@ -45,35 +45,34 @@ func (r *Router) match(req *http.Request) (h http.Handler) {
 	// check regexps
 	// check locations
 
-	var l locationHandler
-	found := false
 	for _, nl := range r.locations {
 		if nl.match(req) != nil {
-			found = true
 			// return exact matches right away
 			if nl.exact {
-				return nl
+				l := nl
+				return &l
 			}
 			// remember longest location
-			if len(nl.location) > len(l.location) {
-				l = nl
+			if lp == nil || len(nl.location) > len(lp.location) {
+				l := nl
+				lp = &l
 			}
 		}
 	}
 
-	if found && l.notRegex {
-		return l
+	if lp != nil && lp.notRegex {
+		return lp
 	}
 
 	for _, nl := range r.regexps {
-		if lp := nl.match(req); lp != nil {
-			r.requests[req] = *lp
-			return *lp
+		if l := nl.match(req); l != nil {
+			r.requests[req] = l
+			return l
 		}
 	}
 
 	// return matched location if no regexps
-	return l
+	return lp
 }
 
 func (r *Router) Location(kind, path string, h http.Handler) {
@@ -123,11 +122,15 @@ func (r *Router) LocationRegexp(path *regexp.Regexp, h http.Handler) {
 	})
 }
 
-// Params returns the cached capture groups. Only available while the main
-// ServeHTTP function is running (be careful spawning go routines that need to
-// lookup this value later.)
+// Params returns the capture groups. If the cached version is not found,
+// request processing is re-run to find the params. This is only the case if
+// called outside r.ServeHTTP (like in a go routine).
 func (r *Router) Params(req *http.Request) Params {
 	if l, ok := r.requests[req]; ok {
+		return l.params()
+	}
+
+	if l := r.match(req); l != nil {
 		return l.params()
 	}
 	return nil

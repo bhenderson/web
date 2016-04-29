@@ -3,6 +3,7 @@ package router
 import (
 	"fmt"
 	"net/http"
+	"reflect"
 	"testing"
 )
 
@@ -47,16 +48,26 @@ func TestCaptures(t *testing.T) {
 	r.Location("~*", `\.(?P<format>gif|jpg|jpeg)$`, tc)
 
 	assertMatch(t, r, "/images/1.gif", `[{format gif}]`)
+
+	// test Params after cleared
+	req, _ := http.NewRequest("GET", "/docs/2.jpg", nil)
+	act := r.Params(req)
+	exp := Params{{"format", "jpg"}}
+	assertEqual(t, exp, act)
 }
 
 func assertMatch(t *testing.T, r *Router, path, exp string) {
 	config = ""
 	req, _ := http.NewRequest("GET", path, nil)
 	r.ServeHTTP(nil, req)
-	if exp != config {
+	assertEqual(t, exp, config)
+}
+
+func assertEqual(t *testing.T, exp, act interface{}) {
+	if !reflect.DeepEqual(exp, act) {
 		t.Errorf(
-			"expected %q got %q\n",
-			exp, config,
+			"expected %#v got %#v\n",
+			exp, act,
 		)
 	}
 }
