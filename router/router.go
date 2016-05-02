@@ -12,6 +12,7 @@ import (
 func NewRouter() *Router {
 	return &Router{
 		requests: make(map[*http.Request]*locationHandler),
+		exact:    make(map[string]locationHandler),
 	}
 }
 
@@ -20,6 +21,7 @@ type Router struct {
 	// http.NotFound
 	NotFound http.HandlerFunc
 
+	exact     map[string]locationHandler
 	locations []locationHandler
 	regexps   []locationHandler
 
@@ -51,13 +53,13 @@ func (r *Router) match(req *http.Request) (lp *locationHandler) {
 	// check regexps
 	// check locations
 
+	// Seems messy. should I pass path to all match?
+	if l, ok := r.exact[req.URL.Path]; ok {
+		return &l
+	}
+
 	for _, nl := range r.locations {
 		if nl.match(req) != nil {
-			// return exact matches right away
-			if nl.exact {
-				l := nl
-				return &l
-			}
 			// remember longest location
 			if lp == nil || len(nl.location) > len(lp.location) {
 				l := nl
@@ -120,11 +122,10 @@ func (r *Router) LocationFunc(kind, path string, h http.HandlerFunc) {
 //
 // Same as Location("=", path, h)
 func (r *Router) LocationExact(path string, h http.Handler) {
-	r.locations = append(r.locations, locationHandler{
-		location: path,
-		handler:  h,
-		exact:    true,
-	})
+	r.exact[path] = locationHandler{
+		exact:   true,
+		handler: h,
+	}
 }
 
 // LocationPrefix matches the beginning of the url path and skips regexps after longest match.
@@ -182,14 +183,11 @@ func (h locationHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // match needs to return a pointer in the case of modifying capResults
 // takes care to return a copy
 func (h locationHandler) match(r *http.Request) *locationHandler {
-	path := r.URL.Path
 	if h.exact {
-		if h.location == path {
-			return &h
-		} else {
-			return nil
-		}
+		return &h
 	}
+
+	path := r.URL.Path
 
 	if h.regexp == nil {
 		if len(path) >= len(h.location) && path[:len(h.location)] == h.location {
