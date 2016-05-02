@@ -127,7 +127,7 @@ func (r *Router) LocationExact(path string, h http.Handler) {
 	})
 }
 
-// LocationPrefix mataches the beginning of the url path and skips regexps after longest match.
+// LocationPrefix matches the beginning of the url path and skips regexps after longest match.
 //
 // Same as Location("^~", path, h)
 func (r *Router) LocationPrefix(path string, h http.Handler) {
