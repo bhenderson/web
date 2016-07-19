@@ -10,7 +10,7 @@ func PanicMiddleware(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
-				http.Errorf(w, perror, http.StatusInternalServerError)
+				http.Error(w, perror, http.StatusInternalServerError)
 			}
 		}()
 		next.ServeHTTP(w, r)
