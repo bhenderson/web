@@ -80,6 +80,7 @@ func TestMiddleware(t *testing.T) {
 		return func(w http.ResponseWriter, r *http.Request) {
 			midCalled = true
 			nw := &struct{ http.ResponseWriter }{w}
+			// keep original functionality of w (such as Flusher, Hijacker, etc.)
 			w = WrapResponseWriter(nw, w)
 			next.ServeHTTP(w, r)
 		}
