@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"sort"
 )
 
 func NewRouter() *Router {
@@ -58,18 +59,14 @@ func (r *Router) match(req *http.Request) (lp *locationHandler) {
 		return &l
 	}
 
+	// locations are now sorted by longest path, so we use the first matched.
 	for _, nl := range r.locations {
-		if nl.match(req) != nil {
-			// remember longest location
-			if lp == nil || len(nl.location) > len(lp.location) {
-				l := nl
-				lp = &l
+		if lp = nl.match(req); lp != nil {
+			if lp.noRegexs {
+				return lp
 			}
+			break
 		}
-	}
-
-	if lp != nil && lp.notRegex {
-		return lp
 	}
 
 	for _, nl := range r.regexps {
@@ -104,7 +101,7 @@ func (r *Router) Location(kind, path string, h http.Handler) {
 	case "^~":
 		r.LocationPrefix(path, h)
 	case "":
-		r.locations = append(r.locations, locationHandler{
+		r.addLocation(locationHandler{
 			location: path,
 			handler:  h,
 		})
@@ -132,9 +129,9 @@ func (r *Router) LocationExact(path string, h http.Handler) {
 //
 // Same as Location("^~", path, h)
 func (r *Router) LocationPrefix(path string, h http.Handler) {
-	r.locations = append(r.locations, locationHandler{
+	r.addLocation(locationHandler{
 		location: path,
-		notRegex: true,
+		noRegexs: true,
 		handler:  h,
 	})
 }
@@ -165,10 +162,22 @@ func (r *Router) Params(req *http.Request) Params {
 	return nil
 }
 
+func (r *Router) addLocation(h locationHandler) {
+	r.locations = append(r.locations, h)
+	sort.Stable(locationHandlers(r.locations))
+}
+
+// sort by longest location
+type locationHandlers []locationHandler
+
+func (s locationHandlers) Len() int           { return len(s) }
+func (s locationHandlers) Less(i, j int) bool { return -len(s[i].location) < -len(s[j].location) }
+func (s locationHandlers) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+
 type locationHandler struct {
 	location string
 	exact    bool
-	notRegex bool
+	noRegexs bool
 
 	regexp               *regexp.Regexp
 	capNames, capResults []string
