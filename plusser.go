@@ -9,190 +9,232 @@ import (
 // Usually, implementations of http.ResponseWriter contain extra methods, so we
 // auto generate all combinations of those to keep the functionality
 
-type plusser0 interface {
+type plusser0000 interface {
 	http.CloseNotifier
 	http.Flusher
 	http.Hijacker
 	io.ReaderFrom
 }
 
-type responseWriter0 struct {
+type responseWriter0000 struct {
 	http.ResponseWriter
-	plusser0
+	plusser0000
 }
 
-type plusser1 interface {
-	http.CloseNotifier
-	http.Flusher
-	http.Hijacker
-}
-
-type responseWriter1 struct {
-	http.ResponseWriter
-	plusser1
-}
-
-type plusser2 interface {
-	http.CloseNotifier
-	http.Flusher
-	io.ReaderFrom
-}
-
-type responseWriter2 struct {
-	http.ResponseWriter
-	plusser2
-}
-
-type plusser3 interface {
-	http.CloseNotifier
-	http.Hijacker
-	io.ReaderFrom
-}
-
-type responseWriter3 struct {
-	http.ResponseWriter
-	plusser3
-}
-
-type plusser4 interface {
-	http.CloseNotifier
-	http.Flusher
-}
-
-type responseWriter4 struct {
-	http.ResponseWriter
-	plusser4
-}
-
-type plusser5 interface {
-	http.CloseNotifier
-	http.Hijacker
-}
-
-type responseWriter5 struct {
-	http.ResponseWriter
-	plusser5
-}
-
-type plusser6 interface {
-	http.CloseNotifier
-	io.ReaderFrom
-}
-
-type responseWriter6 struct {
-	http.ResponseWriter
-	plusser6
-}
-
-type plusser7 interface {
+type plusser0001 interface {
+	// http.CloseNotifier
 	http.Flusher
 	http.Hijacker
 	io.ReaderFrom
 }
 
-type responseWriter7 struct {
+type responseWriter0001 struct {
 	http.ResponseWriter
-	plusser7
+	plusser0001
 }
 
-type plusser8 interface {
-	http.Flusher
-	http.Hijacker
-}
-
-type responseWriter8 struct {
-	http.ResponseWriter
-	plusser8
-}
-
-type plusser9 interface {
-	http.Flusher
-	io.ReaderFrom
-}
-
-type responseWriter9 struct {
-	http.ResponseWriter
-	plusser9
-}
-
-type plusser10 interface {
-	http.Hijacker
-	io.ReaderFrom
-}
-
-type responseWriter10 struct {
-	http.ResponseWriter
-	plusser10
-}
-
-type plusser11 interface {
+type plusser0010 interface {
 	http.CloseNotifier
-}
-
-type responseWriter11 struct {
-	http.ResponseWriter
-	plusser11
-}
-
-type plusser12 interface {
-	http.Flusher
-}
-
-type responseWriter12 struct {
-	http.ResponseWriter
-	plusser12
-}
-
-type plusser13 interface {
+	// http.Flusher
 	http.Hijacker
-}
-
-type responseWriter13 struct {
-	http.ResponseWriter
-	plusser13
-}
-
-type plusser14 interface {
 	io.ReaderFrom
 }
 
-type responseWriter14 struct {
+type responseWriter0010 struct {
 	http.ResponseWriter
-	plusser14
+	plusser0010
+}
+
+type plusser0011 interface {
+	// http.CloseNotifier
+	// http.Flusher
+	http.Hijacker
+	io.ReaderFrom
+}
+
+type responseWriter0011 struct {
+	http.ResponseWriter
+	plusser0011
+}
+
+type plusser0100 interface {
+	http.CloseNotifier
+	http.Flusher
+	// http.Hijacker
+	io.ReaderFrom
+}
+
+type responseWriter0100 struct {
+	http.ResponseWriter
+	plusser0100
+}
+
+type plusser0101 interface {
+	// http.CloseNotifier
+	http.Flusher
+	// http.Hijacker
+	io.ReaderFrom
+}
+
+type responseWriter0101 struct {
+	http.ResponseWriter
+	plusser0101
+}
+
+type plusser0110 interface {
+	http.CloseNotifier
+	// http.Flusher
+	// http.Hijacker
+	io.ReaderFrom
+}
+
+type responseWriter0110 struct {
+	http.ResponseWriter
+	plusser0110
+}
+
+type plusser0111 interface {
+	// http.CloseNotifier
+	// http.Flusher
+	// http.Hijacker
+	io.ReaderFrom
+}
+
+type responseWriter0111 struct {
+	http.ResponseWriter
+	plusser0111
+}
+
+type plusser1000 interface {
+	http.CloseNotifier
+	http.Flusher
+	http.Hijacker
+	// io.ReaderFrom
+}
+
+type responseWriter1000 struct {
+	http.ResponseWriter
+	plusser1000
+}
+
+type plusser1001 interface {
+	// http.CloseNotifier
+	http.Flusher
+	http.Hijacker
+	// io.ReaderFrom
+}
+
+type responseWriter1001 struct {
+	http.ResponseWriter
+	plusser1001
+}
+
+type plusser1010 interface {
+	http.CloseNotifier
+	// http.Flusher
+	http.Hijacker
+	// io.ReaderFrom
+}
+
+type responseWriter1010 struct {
+	http.ResponseWriter
+	plusser1010
+}
+
+type plusser1011 interface {
+	// http.CloseNotifier
+	// http.Flusher
+	http.Hijacker
+	// io.ReaderFrom
+}
+
+type responseWriter1011 struct {
+	http.ResponseWriter
+	plusser1011
+}
+
+type plusser1100 interface {
+	http.CloseNotifier
+	http.Flusher
+	// http.Hijacker
+	// io.ReaderFrom
+}
+
+type responseWriter1100 struct {
+	http.ResponseWriter
+	plusser1100
+}
+
+type plusser1101 interface {
+	// http.CloseNotifier
+	http.Flusher
+	// http.Hijacker
+	// io.ReaderFrom
+}
+
+type responseWriter1101 struct {
+	http.ResponseWriter
+	plusser1101
+}
+
+type plusser1110 interface {
+	http.CloseNotifier
+	// http.Flusher
+	// http.Hijacker
+	// io.ReaderFrom
+}
+
+type responseWriter1110 struct {
+	http.ResponseWriter
+	plusser1110
+}
+
+type plusser1111 interface {
+	// http.CloseNotifier
+	// http.Flusher
+	// http.Hijacker
+	// io.ReaderFrom
+}
+
+type responseWriter1111 struct {
+	http.ResponseWriter
+	plusser1111
 }
 
 func newPlusser(wr, pl http.ResponseWriter) http.ResponseWriter {
 	switch x := pl.(type) {
-	case plusser0:
-		return &responseWriter0{wr, x}
-	case plusser1:
-		return &responseWriter1{wr, x}
-	case plusser2:
-		return &responseWriter2{wr, x}
-	case plusser3:
-		return &responseWriter3{wr, x}
-	case plusser4:
-		return &responseWriter4{wr, x}
-	case plusser5:
-		return &responseWriter5{wr, x}
-	case plusser6:
-		return &responseWriter6{wr, x}
-	case plusser7:
-		return &responseWriter7{wr, x}
-	case plusser8:
-		return &responseWriter8{wr, x}
-	case plusser9:
-		return &responseWriter9{wr, x}
-	case plusser10:
-		return &responseWriter10{wr, x}
-	case plusser11:
-		return &responseWriter11{wr, x}
-	case plusser12:
-		return &responseWriter12{wr, x}
-	case plusser13:
-		return &responseWriter13{wr, x}
-	case plusser14:
-		return &responseWriter14{wr, x}
+	case plusser0000:
+		return &responseWriter0000{wr, x}
+	case plusser0001:
+		return &responseWriter0001{wr, x}
+	case plusser0010:
+		return &responseWriter0010{wr, x}
+	case plusser0011:
+		return &responseWriter0011{wr, x}
+	case plusser0100:
+		return &responseWriter0100{wr, x}
+	case plusser0101:
+		return &responseWriter0101{wr, x}
+	case plusser0110:
+		return &responseWriter0110{wr, x}
+	case plusser0111:
+		return &responseWriter0111{wr, x}
+	case plusser1000:
+		return &responseWriter1000{wr, x}
+	case plusser1001:
+		return &responseWriter1001{wr, x}
+	case plusser1010:
+		return &responseWriter1010{wr, x}
+	case plusser1011:
+		return &responseWriter1011{wr, x}
+	case plusser1100:
+		return &responseWriter1100{wr, x}
+	case plusser1101:
+		return &responseWriter1101{wr, x}
+	case plusser1110:
+		return &responseWriter1110{wr, x}
+	case plusser1111:
+		return &responseWriter1111{wr, x}
 	}
 	return wr
 }

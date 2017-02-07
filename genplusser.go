@@ -4,10 +4,20 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"go/format"
+	"io"
 	"io/ioutil"
+	"os"
 	"text/template"
 )
+
+var all = []string{
+	"http.CloseNotifier",
+	"http.Flusher",
+	"http.Hijacker",
+	"io.ReaderFrom",
+}
 
 var tmp = template.Must(template.New("plusser").Parse(`package web
 
@@ -19,71 +29,74 @@ import (
 // AUTO GENERATED. DO NOT EDIT
 // Usually, implementations of http.ResponseWriter contain extra methods, so we
 // auto generate all combinations of those to keep the functionality
-{{range $idx, $el := .}}
-type plusser{{$idx}} interface { {{range .}}
-	{{.Pkg}}.{{.Name}} {{end}}
+{{ range . }}
+type plusser{{.Bits}} interface { {{range .Interfaces }}
+  {{if not .On}}// {{end}}{{.Interface}} {{end}}
 }
 
-type responseWriter{{$idx}} struct {
+type responseWriter{{.Bits}} struct {
 	http.ResponseWriter
-	plusser{{$idx}}
+	plusser{{.Bits}}
 }
 {{end}}
 func newPlusser(wr, pl http.ResponseWriter) http.ResponseWriter {
-	switch x := pl.(type) { {{range $idx, $el := .}}
-	case plusser{{$idx}}:
-		return &responseWriter{{$idx}}{wr, x} {{end}}
+	switch x := pl.(type) { {{range .}}
+	case plusser{{.Bits}}:
+		return &responseWriter{{.Bits}}{wr, x} {{end}}
 	}
 	return wr
 }
 `))
 
-type IS struct {
-	Name, Pkg string
+type Interfaces struct {
+	Bit        int
+	Interfaces []Interface
 }
 
-type IST []IS
+func (ifs Interfaces) Bits() string {
+	return fmt.Sprintf("%04b", ifs.Bit)
+}
+
+type Interface struct {
+	Bit       int
+	Interface string
+}
+
+func (ifs Interface) On() bool {
+	// Reverse the bit mask so that 0 is "on"
+	return ifs.Bit == 0
+}
 
 func main() {
-	all := IST{
-		{"CloseNotifier", "http"},
-		{"Flusher", "http"},
-		{"Hijacker", "http"},
-		{"ReaderFrom", "io"},
-	}
-
 	combo := compileAll(all)
 
 	var buf bytes.Buffer
 
-	tmp.Execute(&buf, combo)
+	err := tmp.Execute(&buf, combo)
+	if err != nil {
+		panic(err)
+	}
 
 	out, err := format.Source(buf.Bytes())
 	if err != nil {
+		io.Copy(os.Stdout, &buf)
 		panic(err)
 	}
 
 	ioutil.WriteFile("plusser.go", out, 0666)
 }
 
-func compileAll(all IST) []IST {
-	if len(all) == 0 {
-		return []IST{}
-	}
+func compileAll(ifs []string) []Interfaces {
+	all := make([]Interfaces, 1<<uint(len(ifs)))
 
-	next := compileAll(all[1:])
-	cur := []IST{}
-
-	for _, c := range next {
-		cur = append(cur, append(IST{all[0]}, c...))
-	}
-	for _, c := range next {
-		if len(c) > 1 {
-			cur = append(cur, c)
+	for i := range all {
+		all[i].Bit = i
+		all[i].Interfaces = make([]Interface, len(ifs))
+		for j := range ifs {
+			all[i].Interfaces[j].Bit = i & (1 << uint(j))
+			all[i].Interfaces[j].Interface = ifs[j]
 		}
 	}
-	for _, c := range all {
-		cur = append(cur, IST{c})
-	}
-	return cur
+
+	return all
 }
