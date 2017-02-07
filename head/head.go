@@ -1,18 +1,27 @@
 package head
 
 import (
-	"fmt"
 	"net/http"
+	"strconv"
 )
 
 type headWriter struct {
-	size int
 	http.ResponseWriter
+
+	size int
 }
 
 func (hw *headWriter) Write(p []byte) (int, error) {
+	if hw.Header().Get("Content-Type") == "" {
+		hw.Header().Set("Content-Type", http.DetectContentType(p))
+	}
 	hw.size += len(p)
 	return len(p), nil
+}
+
+func (hw *headerWriter) WriteHeader(i int) {
+	hw.Header().Set("Content-Length", strconv.Itoa(hw.size))
+	hw.ResponseWriter.WriteHeader(i)
 }
 
 // HeadMiddleware implements web.Middleware. If the request Method is "HEAD",
@@ -20,17 +29,13 @@ func (hw *headWriter) Write(p []byte) (int, error) {
 // any response. It does tries to preserve what would be the Content-Length header.
 func HeadMiddleware(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		isHead := r.Method == "HEAD"
-		if isHead {
+		if r.Method == "HEAD" {
 			r.Method = "GET"
-			w = &headWriter{0, w}
+			w = &headWriter{w, 0}
 		}
 
 		next.ServeHTTP(w, r)
 
-		if isHead {
-			size := fmt.Sprintf("%d", w.(*headWriter).size)
-			w.Header().Set("Content-Length", size)
-		}
+		w.WriteHeader(http.StatusOK)
 	}
 }
