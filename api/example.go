@@ -4,17 +4,17 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
-	"time"
+	"os"
+	"text/template"
 
 	"github.com/bhenderson/web/api"
 )
 
 func main() {
-	h := api.Run(func(h api.H) {
-		h.Use(HandleLogs)
+	api.Use(HandleLogs)
 
+	h := api.Run(func(h api.H) {
 		h.Path("api", func(h api.H) {
 			h.Use(HandleJSON)
 
@@ -48,30 +48,35 @@ func main() {
 			})
 		})
 
-		defer h.Catch(func(h api.H) {
-			if h.Status >= 400 {
-				h.Status = 200
-				http.ServeFile(&h, h.Request, "./public/index.hml")
-			}
-		})
+		h.Path("*", func(h api.H) {
+			defer h.Catch(func(h api.H) {
+				if h.Status >= 400 {
+					h.Request.URL.Path = "/"
+					h.ServeFiles(http.Dir("./public"))
+				}
+			})
 
-		h.ServeFiles(http.Dir("./public"))
+			h.ServeFiles(http.Dir("./public"))
+		})
 	})
 
 	http.ListenAndServe(":8123", h)
 }
 
 func HandleLogs(f api.Handler) api.Handler {
-	return func(h api.H) {
-		start := time.Now()
+	// common log format used by Apache: httpd.apache.org/docs/2.2/logs.html
+	Common := `{{.RemoteAddr}} - {{.Username}} [{{.LocalTime}}] "{{.RequestLine}}" {{.Status}} {{.ContentSize}}`
 
+	// combined log format used by Apache: httpd.apache.org/docs/2.2/logs.html
+	Combined := Common + ` "{{.Referer}}" "{{.UserAgent}}"`
+
+	myLogs := Combined + " ({{.Since}})\n"
+
+	tmp := template.Must(template.New("logger").Parse(myLogs))
+
+	return func(h api.H) {
 		defer h.Catch(func(h api.H) {
-			fmt.Printf("%s %s %d (%v)\n",
-				h.Method,
-				h.URL,
-				h.Status,
-				time.Since(start),
-			)
+			tmp.Execute(os.Stdout, h)
 		})
 
 		f(h)

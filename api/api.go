@@ -3,12 +3,20 @@ package api
 import (
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
+	"time"
 )
 
 func Run(f Handler) Handler {
 	return f
+}
+
+var DefaultMiddleware = []Middleware{}
+
+func Use(ms ...Middleware) {
+	DefaultMiddleware = append(DefaultMiddleware, ms...)
 }
 
 func newH(w http.ResponseWriter, r *http.Request) H {
@@ -16,6 +24,7 @@ func newH(w http.ResponseWriter, r *http.Request) H {
 	h := H{
 		Request:        r,
 		ResponseWriter: w,
+		Time:           time.Now(),
 		path:           path,
 		rest:           rest,
 	}
@@ -27,6 +36,8 @@ type Handler func(H)
 func (f Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h := newH(w, r)
 
+	h.Use(handleSafePanic)
+	h.Use(DefaultMiddleware...)
 	h.Use(
 		handleFinish,
 		HandleStatus(http.StatusNotFound),
@@ -49,6 +60,8 @@ type H struct {
 	path, rest string
 	Middleware []Middleware
 
+	Time time.Time
+
 	// cheat by using a map (a 0 capacity, fixed pointer slice)
 	allowedVerbs map[string]struct{}
 }
@@ -70,7 +83,7 @@ func (h H) Stream(v interface{}) {
 	case io.Reader:
 		io.Copy(&h, x)
 	case nil:
-		h.WriteHeader(h.Status)
+		// noop
 	default:
 		fmt.Fprintf(&h, "%s", x)
 	}
@@ -113,6 +126,10 @@ func nextPathSegment(path string) (string, string) {
 
 func (h *H) Use(ms ...Middleware) {
 	h.Middleware = append(h.Middleware, ms...)
+}
+
+func (h H) UseBefore(ms ...Middleware) {
+	h.Middleware = append(ms, h.Middleware...)
 }
 
 func (h H) PathSegment() string {
@@ -213,6 +230,19 @@ func (h H) Catch(f Handler) {
 	}
 }
 
+func handleSafePanic(f Handler) Handler {
+	return func(h H) {
+		defer func() {
+			err := recover()
+			if err != nil {
+				panic(err)
+			}
+		}()
+
+		f(h)
+	}
+}
+
 func handleFinish(f Handler) Handler {
 	return func(h H) {
 		defer func() {
@@ -276,6 +306,51 @@ func (h *H) Write(p []byte) (int, error) {
 func (h *H) WriteString(p string) (int, error) {
 	return h.Write([]byte(p))
 }
+
+// Logging methods
+const dash = "-"
+
+func (h H) LocalTime() string {
+	return h.Time.Format("02/Jan/2006:15:04:05 -0700")
+}
+
+// Username returns the Username or a "-"
+func (h H) Username() string {
+	if h.URL != nil {
+		if u := h.URL.User; u != nil {
+			return h.Username()
+		}
+	}
+	return dash
+}
+
+func (h H) RemoteAddr() string {
+	host, _, err := net.SplitHostPort(h.Request.RemoteAddr)
+	if err != nil {
+		return dash
+	}
+	return host
+}
+
+func (h H) RequestLine() string {
+	return fmt.Sprintf("%s %s %s", h.Method, h.RequestURI, h.Proto)
+}
+
+// ContentSize tries to return the content byte size returned to the client not
+// including the headers. If no content was returned (0), this value will be a
+// "-". To log "0", use ContentLength
+func (h H) ContentSize() string {
+	return dash // I don't have a good way of calculating this yet.
+}
+
+// Since returns the elapsed time of the request in nanoseconds.
+// Suggested usage:
+//	"{{.Since.Seconds}}s"
+func (h H) Since() time.Duration {
+	return time.Since(h.Time)
+}
+
+// end logging
 
 var _ http.FileSystem = apiDir{}
 
