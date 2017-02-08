@@ -59,11 +59,11 @@ func TestHandleStatus(t *testing.T) {
 			"GET", "/foo", nil,
 			405, "Method Not Allowed",
 			func(h H) {
-				defer h.Catch(func(h H) {
-					allowed = h.Header().Get("Allow")
-				})
-				h.Delete(nil) // allowed verbs reset within path
+				h.Delete(nil) // allowed verbs are reset
 				h.Path("foo", func(h H) {
+					defer h.Catch(func(h H) {
+						allowed = h.Header().Get("Allow")
+					})
 					h.Put(nil)
 					h.Post(nil)
 				})

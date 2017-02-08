@@ -83,16 +83,9 @@ func (h H) Handle(f Handler) {
 	}
 	h.Middleware = h.Middleware[:0]
 
-	f(h)
+	h.allowedVerbs = emptyAllowedVerbs()
 
-	// Handle was not called within Handler
-	if len(h.allowedVerbs) != 0 {
-		verbs := make([]string, 0)
-		for v := range h.allowedVerbs {
-			verbs = append(verbs, v)
-		}
-		h.Allow(verbs...)
-	}
+	f(h)
 }
 
 func (h H) HandleHTTP(f http.Handler) {
@@ -149,7 +142,6 @@ func (h H) PathEnd(path string, f Handler) {
 }
 
 func (h H) checkPath(reqPath, segPath string, f Handler) {
-	h.allowedVerbs = emptyAllowedVerbs()
 	if reqPath == segPath {
 		h.Handle(f)
 	}
@@ -167,7 +159,11 @@ func (h H) checkPath(reqPath, segPath string, f Handler) {
 }
 
 func (h H) Allow(verbs ...string) {
-	// TODO this should be automatic.
+	if len(verbs) == 0 {
+		for v := range h.allowedVerbs {
+			verbs = append(verbs, v)
+		}
+	}
 	for _, v := range verbs {
 		if h.Method == v {
 			return
@@ -183,24 +179,26 @@ func (h H) Allow(verbs ...string) {
 //	if h.Method == verb {
 //		f(h)
 //	}
-func (h *H) Verb(verb string, f Handler) {
-	if h.allowedVerbs == nil {
-		h.allowedVerbs = emptyAllowedVerbs()
-	}
+func (h H) Verb(verb string, f Handler) {
 	h.allowedVerbs[verb] = struct{}{}
 	if h.Method == verb {
 		h.Handle(f)
 	}
 }
 
-func (h *H) Delete(f Handler) { h.Verb("DELETE", f) }
-func (h *H) Get(f Handler)    { h.Verb("GET", f) }
-func (h *H) Patch(f Handler)  { h.Verb("PATCH", f) }
-func (h *H) Post(f Handler)   { h.Verb("POST", f) }
-func (h *H) Put(f Handler)    { h.Verb("PUT", f) }
+func (h H) Delete(f Handler) { h.Verb("DELETE", f) }
+func (h H) Get(f Handler)    { h.Verb("GET", f) }
+func (h H) Patch(f Handler)  { h.Verb("PATCH", f) }
+func (h H) Post(f Handler)   { h.Verb("POST", f) }
+func (h H) Put(f Handler)    { h.Verb("PUT", f) }
 
 func (h H) Catch(f Handler) {
 	err := recover()
+
+	if err == nil && h.Status == 0 && len(h.allowedVerbs) != 0 {
+		defer h.Catch(f)
+		h.Allow()
+	}
 
 	if res, ok := err.(apiResponse); ok {
 		h.Status = res.status
