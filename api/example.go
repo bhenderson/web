@@ -4,9 +4,13 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"text/template"
+	"time"
 
 	"github.com/bhenderson/web/api"
 )
@@ -72,11 +76,12 @@ func HandleLogs(f api.Handler) api.Handler {
 
 	myLogs := Combined + " ({{.Since}})\n"
 
-	tmp := template.Must(template.New("logger").Parse(myLogs))
+	tmp := template.Must(template.New("logger").
+		Parse(myLogs))
 
 	return func(h api.H) {
 		defer h.Catch(func(h api.H) {
-			tmp.Execute(os.Stdout, h)
+			tmp.Execute(os.Stdout, Logger{h})
 		})
 
 		f(h)
@@ -159,3 +164,51 @@ func (a *App) appTags(h api.H) {
 		"tags": {"tag1", "tag2"},
 	})
 }
+
+// Logging methods
+
+type Logger struct {
+	api.H
+}
+
+const dash = "-"
+
+func (l Logger) LocalTime() string {
+	return l.Time.Format("02/Jan/2006:15:04:05 -0700")
+}
+
+// Username returns the Username or a "-"
+func (l Logger) Username() string {
+	if l.URL != nil {
+		if u := l.URL.User; u != nil {
+			return u.Username()
+		}
+	}
+	return dash
+}
+
+func (l Logger) RemoteAddr() string {
+	host, _, err := net.SplitHostPort(l.Request.RemoteAddr)
+	if err != nil {
+		return dash
+	}
+	return host
+}
+
+func (l Logger) RequestLine() string {
+	return fmt.Sprintf("%s %s %s", l.Method, l.RequestURI, l.Proto)
+}
+
+func (l Logger) ContentSize() string {
+	ln := l.GetContentLength()
+	if ln < 0 {
+		return dash
+	}
+	return strconv.FormatInt(ln, 10)
+}
+
+func (l Logger) Since() time.Duration {
+	return time.Since(l.Time)
+}
+
+// end Logging methods

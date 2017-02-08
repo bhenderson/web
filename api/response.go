@@ -46,3 +46,7 @@ func (r *Response) Write(p []byte) (int, error) {
 func (r *Response) WriteString(p string) (int, error) {
 	return r.Write([]byte(p))
 }
+
+func (r *Response) GetContentLength() int64 {
+	return r.contentLength
+}

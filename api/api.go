@@ -3,9 +3,7 @@ package api
 import (
 	"fmt"
 	"io"
-	"net"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -284,54 +282,6 @@ func (h H) Header() http.Header {
 func (h H) Write(p []byte) (int, error) {
 	return h.Response.Write(p)
 }
-
-// Logging methods
-const dash = "-"
-
-func (h H) LocalTime() string {
-	return h.Time.Format("02/Jan/2006:15:04:05 -0700")
-}
-
-// Username returns the Username or a "-"
-func (h H) Username() string {
-	if h.URL != nil {
-		if u := h.URL.User; u != nil {
-			return h.Username()
-		}
-	}
-	return dash
-}
-
-func (h H) RemoteAddr() string {
-	host, _, err := net.SplitHostPort(h.Request.RemoteAddr)
-	if err != nil {
-		return dash
-	}
-	return host
-}
-
-func (h H) RequestLine() string {
-	return fmt.Sprintf("%s %s %s", h.Method, h.RequestURI, h.Proto)
-}
-
-// ContentSize tries to return the content byte size returned to the client not
-// including the headers. If no content was returned (0), this value will be a
-// "-". To log "0", use ContentLength
-func (h H) ContentSize() string {
-	if h.contentLength == -1 {
-		return dash
-	}
-	return strconv.FormatInt(h.contentLength, 10)
-}
-
-// Since returns the elapsed time of the request in nanoseconds.
-// Suggested usage:
-//	"{{.Since.Seconds}}s"
-func (h H) Since() time.Duration {
-	return time.Since(h.Time)
-}
-
-// end Logging methods
 
 var _ http.FileSystem = apiDir{}
 
