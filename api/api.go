@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -22,11 +23,11 @@ func Use(ms ...Middleware) {
 func newH(w http.ResponseWriter, r *http.Request) H {
 	path, rest := nextPathSegment(r.URL.Path)
 	h := H{
-		Request:        r,
-		ResponseWriter: w,
-		Time:           time.Now(),
-		path:           path,
-		rest:           rest,
+		Request:  r,
+		Response: NewResponse(w),
+		Time:     time.Now(),
+		path:     path,
+		rest:     rest,
 	}
 	return h
 }
@@ -36,7 +37,7 @@ type Handler func(H)
 func (f Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h := newH(w, r)
 
-	h.Use(handleSafePanic)
+	h.Use(handlePanic)
 	h.Use(DefaultMiddleware...)
 	h.Use(
 		handleFinish,
@@ -49,13 +50,10 @@ func (f Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 type Middleware func(Handler) Handler
 
 type H struct {
-	Status int
-	Body   interface{}
-
 	*http.Request
+	*Response
 
-	http.ResponseWriter
-	wroteHeader bool
+	Body interface{}
 
 	path, rest string
 	Middleware []Middleware
@@ -72,7 +70,7 @@ func (h H) Stream(v interface{}) {
 		h.Status = x.status
 		h.Stream(x.body)
 	case http.Handler:
-		x.ServeHTTP(&h, h.Request)
+		x.ServeHTTP(h, h.Request)
 	case int:
 		h.Status = x
 		h.WriteString(http.StatusText(x))
@@ -81,11 +79,11 @@ func (h H) Stream(v interface{}) {
 	case string:
 		h.WriteString(x)
 	case io.Reader:
-		io.Copy(&h, x)
+		io.Copy(h, x)
 	case nil:
 		// noop
 	default:
-		fmt.Fprintf(&h, "%s", x)
+		fmt.Fprintf(h, "%s", x)
 	}
 }
 
@@ -104,7 +102,7 @@ func (h H) Handle(f Handler) {
 func (h H) HandleHTTP(f http.Handler) {
 	// TODO
 	h.Handle(func(h H) {
-		f.ServeHTTP(&h, h.Request)
+		f.ServeHTTP(h, h.Request)
 		h.Return(nil)
 	})
 }
@@ -230,12 +228,13 @@ func (h H) Catch(f Handler) {
 	}
 }
 
-func handleSafePanic(f Handler) Handler {
+func handlePanic(f Handler) Handler {
 	return func(h H) {
 		defer func() {
-			err := recover()
-			if err != nil {
-				panic(err)
+			switch x := recover().(type) {
+			case apiResponse, nil:
+			default:
+				panic(x)
 			}
 		}()
 
@@ -279,32 +278,11 @@ func (h H) Return(body interface{}) {
 }
 
 func (h H) Header() http.Header {
-	return h.ResponseWriter.Header()
+	return h.Response.Header()
 }
 
-func (h *H) WriteHeader(status int) {
-	if status == 0 {
-		status = http.StatusOK
-	}
-	h.ResponseWriter.WriteHeader(status)
-
-	if h.wroteHeader {
-		return
-	}
-
-	h.Status = status
-	h.wroteHeader = true
-}
-
-func (h *H) Write(p []byte) (int, error) {
-	if !h.wroteHeader {
-		h.WriteHeader(h.Status)
-	}
-	return h.ResponseWriter.Write(p)
-}
-
-func (h *H) WriteString(p string) (int, error) {
-	return h.Write([]byte(p))
+func (h H) Write(p []byte) (int, error) {
+	return h.Response.Write(p)
 }
 
 // Logging methods
@@ -340,7 +318,10 @@ func (h H) RequestLine() string {
 // including the headers. If no content was returned (0), this value will be a
 // "-". To log "0", use ContentLength
 func (h H) ContentSize() string {
-	return dash // I don't have a good way of calculating this yet.
+	if h.contentLength == -1 {
+		return dash
+	}
+	return strconv.FormatInt(h.contentLength, 10)
 }
 
 // Since returns the elapsed time of the request in nanoseconds.
@@ -350,7 +331,7 @@ func (h H) Since() time.Duration {
 	return time.Since(h.Time)
 }
 
-// end logging
+// end Logging methods
 
 var _ http.FileSystem = apiDir{}
 
