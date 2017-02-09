@@ -37,24 +37,24 @@ func TestHandleStatus(t *testing.T) {
 	})
 
 	t.Run("GET_not_allowed", func(t *testing.T) {
-		var allowed string
+		var allowed []string
 		assertRequest(t,
 			"GET", "/foo", nil,
 			405, "Method Not Allowed",
 			func(h H) {
 				defer h.Catch(func(h H) {
-					allowed = h.Header().Get("Allow")
+					allowed = h.Header()["Allow"]
 				})
 				h.PathEnd("foo", func(h H) {
-					h.Allow("PUT, POST")
+					h.Allow("PUT", "POST")
 				})
 			},
 		)
-		assert.Equal(t, "PUT, POST", allowed)
+		assert.Equal(t, []string{"PUT", "POST"}, allowed)
 	})
 
 	t.Run("Auto_405", func(t *testing.T) {
-		var allowed string
+		var allowed []string
 		assertRequest(t,
 			"GET", "/foo", nil,
 			405, "Method Not Allowed",
@@ -62,14 +62,14 @@ func TestHandleStatus(t *testing.T) {
 				h.Delete(nil) // allowed verbs are reset
 				h.Path("foo", func(h H) {
 					defer h.Catch(func(h H) {
-						allowed = h.Header().Get("Allow")
+						allowed = h.Header()["Allow"]
 					})
 					h.Put(nil)
 					h.Post(nil)
 				})
 			},
 		)
-		assert.Equal(t, "PUT, POST", allowed)
+		assert.Equal(t, []string{"PUT", "POST"}, allowed)
 	})
 }
 

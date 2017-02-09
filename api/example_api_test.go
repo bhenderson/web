@@ -24,17 +24,19 @@ func ExampleH_Path() {
 
 func ExampleH_Verb() {
 	h := api.Run(func(h api.H) {
-		h.PathEnd("foo", func(h api.H) {
-			h.Post(func(h api.H) {
-				h.Return("post at foo")
-			})
-			h.Allow("POST")
+		defer h.Catch(func(h api.H) {
+			fmt.Println("Status set to", h.Status)
+		})
+		h.Post(func(h api.H) {
+			h.Return("post at foo")
 		})
 	})
 
 	serve(h, "POST", "/foo", nil)
 	serve(h, "GET", "/foo", nil)
-	// Output: 200 post at foo
+	// Output: Status set to 200
+	// 200 post at foo
+	// Status set to 405
 	// 405 Method Not Allowed
 }
 

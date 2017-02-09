@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -57,9 +56,6 @@ type H struct {
 	Middleware []Middleware
 
 	Time time.Time
-
-	// cheat by using a map (a 0 capacity, fixed pointer slice)
-	allowedVerbs map[string]struct{}
 }
 
 func (h H) Stream(v interface{}) {
@@ -92,7 +88,7 @@ func (h H) Handle(f Handler) {
 	}
 	h.Middleware = h.Middleware[:0]
 
-	h.allowedVerbs = emptyAllowedVerbs()
+	h.Header().Del(allowHeader)
 
 	f(h)
 }
@@ -171,29 +167,27 @@ func (h H) checkPath(reqPath, segPath string, f Handler) {
 	}
 }
 
-func (h H) Allow(verbs ...string) {
-	if len(verbs) == 0 {
-		for v := range h.allowedVerbs {
-			verbs = append(verbs, v)
-		}
-	}
-	for _, v := range verbs {
-		if h.Method == v {
-			return
-		}
-	}
+var allowHeader = http.CanonicalHeaderKey("Allow")
 
-	h.Header().Set("Allow", strings.Join(verbs, ", "))
-	h.Return(http.StatusMethodNotAllowed)
+func (h H) Allow(verbs ...string) {
+	// allowHeader MAY be separated into multiple headers
+	// rfc2616-sec4.html#sec4.2
+	h.Header()[allowHeader] = append(h.Header()[allowHeader], verbs...)
+}
+
+func (h H) hasAllowed() bool {
+	_, ok := h.Header()[allowHeader]
+	return ok
 }
 
 // Verb is a convenience function for
 //
+//	h.Allow(verb)
 //	if h.Method == verb {
 //		f(h)
 //	}
 func (h H) Verb(verb string, f Handler) {
-	h.allowedVerbs[verb] = struct{}{}
+	h.Allow(verb)
 	if h.Method == verb {
 		h.Handle(f)
 	}
@@ -208,9 +202,9 @@ func (h H) Put(f Handler)    { h.Verb("PUT", f) }
 func (h H) Catch(f Handler) {
 	err := recover()
 
-	if err == nil && h.Status == 0 && len(h.allowedVerbs) != 0 {
+	if err == nil && h.Status == 0 && h.hasAllowed() {
 		defer h.Catch(f)
-		h.Allow()
+		h.Return(http.StatusMethodNotAllowed)
 	}
 
 	if res, ok := err.(apiResponse); ok {
@@ -295,8 +289,4 @@ func (d apiDir) Open(name string) (http.File, error) {
 		panic(newResponse(http.StatusNotFound, err))
 	}
 	return f, nil
-}
-
-func emptyAllowedVerbs() map[string]struct{} {
-	return make(map[string]struct{})
 }
