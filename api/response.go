@@ -13,6 +13,7 @@ type Response struct {
 	http.ResponseWriter
 
 	Status int
+	Body   interface{}
 
 	wroteHeader   bool
 	contentLength int64

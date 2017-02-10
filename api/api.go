@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 )
@@ -18,15 +19,19 @@ func Use(ms ...Middleware) {
 }
 
 func newH(w http.ResponseWriter, r *http.Request) H {
-	path, rest := nextPathSegment(r.URL.Path)
 	h := H{
 		Request:  r,
 		Response: NewResponse(w),
 		Time:     time.Now(),
-		path:     path,
-		rest:     rest,
+		SubPath:  r.URL.Path,
 	}
 	return h
+}
+
+type halt struct{}
+
+func Halt() {
+	panic(halt{})
 }
 
 type Handler func(H)
@@ -41,7 +46,7 @@ func (f Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		HandleStatus(http.StatusNotFound),
 	)
 
-	h.Handle(f)
+	h.Path("", f)
 }
 
 type Middleware func(Handler) Handler
@@ -50,9 +55,8 @@ type H struct {
 	*http.Request
 	*Response
 
-	Body interface{}
+	PathSegment, SubPath string
 
-	path, rest string
 	Middleware []Middleware
 
 	Time time.Time
@@ -60,9 +64,6 @@ type H struct {
 
 func (h H) Stream(v interface{}) {
 	switch x := v.(type) {
-	case apiResponse:
-		h.Status = x.status
-		h.Stream(x.body)
 	case http.Handler:
 		x.ServeHTTP(h, h.Request)
 	case int:
@@ -75,21 +76,28 @@ func (h H) Stream(v interface{}) {
 	case io.Reader:
 		io.Copy(h, x)
 	case nil:
-		// noop
+		h.Stream(h.Status)
 	default:
 		fmt.Fprintf(h, "%s", x)
 	}
 }
 
 func (h H) Handle(f Handler) {
+	if f == nil {
+		return
+	}
+	h.Use(
+		handlePanics,
+		handleAllowed,
+	)
+
 	// compile in reverse order
 	for i := len(h.Middleware); i > 0; i-- {
 		f = h.Middleware[i-1](f)
 	}
 	h.Middleware = h.Middleware[:0]
 
-	h.Header().Del(allowHeader)
-
+	h.delAllowed()
 	f(h)
 }
 
@@ -107,13 +115,15 @@ func (h H) ServeFiles(root http.FileSystem) {
 	h.HandleHTTP(http.FileServer(apiDir{root}))
 }
 
-func nextPathSegment(path string) (string, string) {
+func (h *H) Next() {
+	path := h.SubPath
 	for i := 0; i < len(path); i++ {
 		if path[i] == '/' {
-			return path[:i], path[i+1:]
+			h.PathSegment, h.SubPath = path[:i], path[i+1:]
+			return
 		}
 	}
-	return path, ""
+	h.PathSegment, h.SubPath = path, ""
 }
 
 func (h *H) Use(ms ...Middleware) {
@@ -124,43 +134,35 @@ func (h H) UseBefore(ms ...Middleware) {
 	h.Middleware = append(ms, h.Middleware...)
 }
 
-func (h H) PathSegment() string {
-	return h.path
-}
-
 // Path runs f if the next PathSegment matches path.
 // The first character of path can have special meaning.
 //
 //	: will match any segment
 //	* will match the rest of the request path
 func (h H) Path(path string, f Handler) {
-	h.path, h.rest = nextPathSegment(h.rest)
-	h.checkPath(h.path, path, f)
+	h.Next()
+	h.checkPath(path, f)
 }
 
+// TODO evaluate removing
 // PathEnd runs only when path matches the end of the request path
-// It is a convenience function for
-//
-//	h.Path(path, func(h H) {
-//		h.Path("", func(h H) {
-//			f(h)
-//		}
-//	})
-func (h H) PathEnd(path string, f Handler) {
-	h.checkPath(h.rest, path, f)
-}
+// It uses the same matching rules as Path
+// func (h H) PathEnd(path string, f Handler) {
+// h.path, h.rest = h.rest, ""
+// h.checkPath(h.path, path, f)
+// }
 
-func (h H) checkPath(reqPath, segPath string, f Handler) {
-	if reqPath == segPath {
+func (h H) checkPath(path string, f Handler) {
+	if h.PathSegment == path {
 		h.Handle(f)
 	}
 
-	if len(segPath) > 0 {
-		switch segPath[0] {
+	if len(path) > 0 {
+		switch path[0] {
 		case '*':
 			h.Handle(f)
 		case ':':
-			if len(reqPath) > 0 {
+			if len(h.PathSegment) > 0 {
 				h.Handle(f)
 			}
 		}
@@ -180,51 +182,44 @@ func (h H) hasAllowed() bool {
 	return ok
 }
 
-// Verb is a convenience function for
-//
-//	h.Allow(verb)
-//	if h.Method == verb {
-//		f(h)
-//	}
+func (h H) delAllowed() {
+	h.Header().Del(allowHeader)
+}
+
+// Verb runs f if the Method matches and we're at the end of the path
 func (h H) Verb(verb string, f Handler) {
 	h.Allow(verb)
-	if h.Method == verb {
+	if h.Method == verb && h.SubPath == "" {
 		h.Handle(f)
 	}
 }
 
-func (h H) Delete(f Handler) { h.Verb("DELETE", f) }
+// Common Methods rfc=7231#section-4.1
 func (h H) Get(f Handler)    { h.Verb("GET", f) }
-func (h H) Patch(f Handler)  { h.Verb("PATCH", f) }
+func (h H) Head(f Handler)   { h.Verb("HEAD", f) }
 func (h H) Post(f Handler)   { h.Verb("POST", f) }
 func (h H) Put(f Handler)    { h.Verb("PUT", f) }
+func (h H) Delete(f Handler) { h.Verb("DELETE", f) }
+
+// Connect // is only used for Proxies
+// Options // internally handled, not ment to be customized
+func (h H) Trace(f Handler) { h.Verb("Trace", f) }
 
 func (h H) Catch(f Handler) {
-	err := recover()
-
-	if err == nil && h.Status == 0 && h.hasAllowed() {
-		defer h.Catch(f)
-		h.Return(http.StatusMethodNotAllowed)
-	}
-
-	if res, ok := err.(apiResponse); ok {
-		h.Status = res.status
-		h.Body = res.body
-	} else {
-		h.Body = err
-	}
+	r := recover()
 
 	if f != nil {
 		f(h)
-		h.Return(h.Body)
 	}
+
+	panic(r)
 }
 
 func handlePanic(f Handler) Handler {
 	return func(h H) {
 		defer func() {
 			switch x := recover().(type) {
-			case apiResponse, nil:
+			case nil:
 			default:
 				panic(x)
 			}
@@ -237,36 +232,85 @@ func handlePanic(f Handler) Handler {
 func handleFinish(f Handler) Handler {
 	return func(h H) {
 		defer func() {
-			h.Stream(recover())
+			r := recover()
+			if _, ok := r.(halt); ok {
+				r = h.Response.Body
+			}
+			h.Stream(r)
 		}()
 
 		f(h)
 	}
 }
 
+func handleAllowed(f Handler) Handler {
+	return func(h H) {
+		f(h)
+		if h.hasAllowed() {
+			if h.Method == "OPTIONS" {
+				h.Return(http.StatusOK)
+			} else {
+				h.Return(http.StatusMethodNotAllowed)
+			}
+		}
+		h.delAllowed()
+	}
+}
+
 func HandleStatus(status int) Middleware {
 	return func(f Handler) Handler {
 		return func(h H) {
-			defer func() {
-				err := recover()
-
-				if err == nil {
-					err = status
-				}
-
-				h.Return(err)
-			}()
-
 			f(h)
+			h.Return(status)
 		}
 	}
 }
 
 func (h H) Return(body interface{}) {
-	if h.Status == 0 && body == nil {
-		panic(nil)
+	switch x := body.(type) {
+	case apiError:
+		// pass
+	case error:
+		body = apiError{
+			x,
+			callers(1),
+		}
+		if h.Status == 0 {
+			h.Status = http.StatusInternalServerError
+		}
+	case int:
+		h.Status = x
+		// keep body as an int
+	case *Response:
+		h.Return(*x)
+	case Response:
+		h.Status = x.Status
+		h.Return(x.Body)
+	default:
+		if h.Status == 0 {
+			h.Status = http.StatusOK
+		}
 	}
-	panic(newResponse(h.Status, body))
+	h.Response.Body = body
+	Halt()
+}
+
+// Do we want to treat regular panics as different from Return?
+func handlePanics(f Handler) Handler {
+	return func(h H) {
+		defer func() {
+			r := recover()
+			if r == nil {
+				return
+			}
+			if _, ok := r.(halt); !ok {
+				h.Status = 500
+			}
+			panic(r)
+		}()
+
+		f(h)
+	}
 }
 
 func (h H) Header() http.Header {
@@ -286,7 +330,11 @@ type apiDir struct {
 func (d apiDir) Open(name string) (http.File, error) {
 	f, err := d.root.Open(name)
 	if err != nil {
-		panic(newResponse(http.StatusNotFound, err))
+		panic(Response{Status: http.StatusNotFound, Body: err})
 	}
 	return f, nil
+}
+
+func debug(v interface{}) {
+	log.Printf("%#v\n", v)
 }

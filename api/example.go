@@ -22,11 +22,11 @@ func main() {
 		h.Path("api", func(h api.H) {
 			h.Use(HandleJSON)
 
-			h.PathEnd("user", func(h api.H) {
+			h.Path("user", func(h api.H) {
 				h.Get(getUser)
 			})
 
-			h.PathEnd("jira", func(h api.H) {
+			h.Path("jira", func(h api.H) {
 				h.Get(getJira)
 				h.Post(postJira)
 			})

@@ -27,8 +27,10 @@ func ExampleH_Verb() {
 		defer h.Catch(func(h api.H) {
 			fmt.Println("Status set to", h.Status)
 		})
-		h.Post(func(h api.H) {
-			h.Return("post at foo")
+		h.Path("foo", func(h api.H) {
+			h.Post(func(h api.H) {
+				h.Return("post at foo")
+			})
 		})
 	})
 
