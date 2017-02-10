@@ -28,10 +28,12 @@ func newH(w http.ResponseWriter, r *http.Request) H {
 	return h
 }
 
-type halt struct{}
+type halter struct{}
+
+var halt = halter{}
 
 func Halt() {
-	panic(halt{})
+	panic(halt)
 }
 
 type Handler func(H)
@@ -63,6 +65,9 @@ type H struct {
 }
 
 func (h H) Stream(v interface{}) {
+	if v == halt {
+		v = h.Response.Body
+	}
 	switch x := v.(type) {
 	case http.Handler:
 		x.ServeHTTP(h, h.Request)
@@ -232,11 +237,7 @@ func handlePanic(f Handler) Handler {
 func handleFinish(f Handler) Handler {
 	return func(h H) {
 		defer func() {
-			r := recover()
-			if _, ok := r.(halt); ok {
-				r = h.Response.Body
-			}
-			h.Stream(r)
+			h.Stream(recover())
 		}()
 
 		f(h)
@@ -303,7 +304,7 @@ func handlePanics(f Handler) Handler {
 			if r == nil {
 				return
 			}
-			if _, ok := r.(halt); !ok {
+			if r != halt {
 				h.Status = 500
 			}
 			panic(r)
