@@ -5,6 +5,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -32,13 +33,11 @@ func main() {
 			})
 
 			h.Path("applications", func(h api.H) {
-				h.Path("", func(h api.H) {
-					h.Get(getApps)
-					h.Post(newApp)
-				})
+				h.Get(getApps)
+				h.Post(newApp)
 
 				h.Path(":appId", func(h api.H) {
-					app := lookupApp(h.PathSegment())
+					app := lookupApp(h.PathSegment)
 					if app == nil {
 						h.Return(404)
 					}
@@ -52,16 +51,15 @@ func main() {
 			})
 		})
 
-		h.Path("*", func(h api.H) {
-			defer h.Catch(func(h api.H) {
-				if h.Status >= 400 {
-					h.Request.URL.Path = "/"
-					h.ServeFiles(http.Dir("./public"))
-				}
-			})
-
-			h.ServeFiles(http.Dir("./public"))
+		defer h.Catch(func(h api.H) {
+			log.Println("inside catch")
+			if h.Status == 404 {
+				h.SubPath = "/"
+				h.ServeFiles(http.Dir("./public"))
+			}
 		})
+
+		h.ServeFiles(http.Dir("./public"))
 	})
 
 	http.ListenAndServe(":8123", h)
@@ -94,11 +92,12 @@ func HandleJSON(f api.Handler) api.Handler {
 			h.Header().Set("Content-Type", "application/json")
 
 			var err error
-			h.Body, err = json.Marshal(h.Body)
+			body := h.Response.Body
+			body, err = json.Marshal(body)
 			if err != nil {
-				h.Body = err
+				body = err
 			}
-			h.Return(h.Body)
+			h.Return(body)
 		})
 
 		f(h)

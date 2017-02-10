@@ -65,6 +65,12 @@ func TestHandle(t *testing.T) {
 		{"ANY", "/panics", nil, 500, "some error", nil, func(h H) {
 			panic("some error")
 		}},
+		{"ANY", "/apiDir", nil, 1404, "file not found", nil, func(h H) {
+			defer h.Catch(func(h H) {
+				h.Status += 1000
+			})
+			panic(Response{Status: 404, Body: fmt.Errorf("file not found")})
+		}},
 	}
 
 	for _, tc := range tcs {

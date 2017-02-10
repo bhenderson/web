@@ -3,7 +3,6 @@ package api
 import (
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"time"
 )
@@ -83,7 +82,7 @@ func (h H) Stream(v interface{}) {
 	case nil:
 		h.Stream(h.Status)
 	default:
-		fmt.Fprintf(h, "%s", x)
+		fmt.Fprintf(h, "%v", x)
 	}
 }
 
@@ -109,6 +108,7 @@ func (h H) Handle(f Handler) {
 func (h H) HandleHTTP(f http.Handler) {
 	// TODO
 	h.Handle(func(h H) {
+		h.Request.URL.Path = h.SubPath
 		f.ServeHTTP(h, h.Request)
 		h.Return(nil)
 	})
@@ -208,12 +208,13 @@ func (h H) Delete(f Handler) { h.Verb("DELETE", f) }
 
 // Connect // is only used for Proxies
 // Options // internally handled, not ment to be customized
-func (h H) Trace(f Handler) { h.Verb("Trace", f) }
+// func (h H) Trace(f Handler) { h.Verb("Trace", f) }
 
 func (h H) Catch(f Handler) {
 	r := recover()
 
 	if f != nil {
+		h.SetBody(r)
 		f(h)
 	}
 
@@ -268,7 +269,14 @@ func HandleStatus(status int) Middleware {
 }
 
 func (h H) Return(body interface{}) {
+	h.SetBody(body)
+	Halt()
+}
+
+func (h H) SetBody(body interface{}) {
 	switch x := body.(type) {
+	case halter:
+		return
 	case apiError:
 		// pass
 	case error:
@@ -283,17 +291,16 @@ func (h H) Return(body interface{}) {
 		h.Status = x
 		// keep body as an int
 	case *Response:
-		h.Return(*x)
+		h.SetBody(*x)
 	case Response:
 		h.Status = x.Status
-		h.Return(x.Body)
+		h.SetBody(x.Body)
 	default:
 		if h.Status == 0 {
 			h.Status = http.StatusOK
 		}
 	}
 	h.Response.Body = body
-	Halt()
 }
 
 // Do we want to treat regular panics as different from Return?
@@ -337,5 +344,5 @@ func (d apiDir) Open(name string) (http.File, error) {
 }
 
 func debug(v interface{}) {
-	log.Printf("%#v\n", v)
+	fmt.Printf("%#v\n", v)
 }
