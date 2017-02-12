@@ -117,7 +117,7 @@ func (h H) HandleHTTP(f http.Handler) {
 // ServeFiles is exactly like http.FileServer, except that it runs
 // h.Middleware, and also wraps root such that errors returned by Open panic
 func (h H) ServeFiles(root http.FileSystem) {
-	h.HandleHTTP(http.FileServer(apiDir{root}))
+	h.HandleHTTP(http.FileServer(apiDir{h, root}))
 }
 
 func (h *H) Next() {
@@ -211,14 +211,14 @@ func (h H) Delete(f Handler) { h.Verb("DELETE", f) }
 // func (h H) Trace(f Handler) { h.Verb("Trace", f) }
 
 func (h H) Catch(f Handler) {
-	r := recover()
-
-	if f != nil {
-		h.SetBody(r)
-		f(h)
+	if f == nil {
+		return
 	}
 
-	panic(r)
+	r := recover()
+	h.SetBody(r)
+	f(h)
+	Halt()
 }
 
 func handlePanic(f Handler) Handler {
@@ -274,9 +274,11 @@ func (h H) Return(body interface{}) {
 }
 
 func (h H) SetBody(body interface{}) {
-	switch x := body.(type) {
-	case halter:
+	if body == halt {
 		return
+	}
+L:
+	switch x := body.(type) {
 	case apiError:
 		// pass
 	case error:
@@ -291,10 +293,12 @@ func (h H) SetBody(body interface{}) {
 		h.Status = x
 		// keep body as an int
 	case *Response:
-		h.SetBody(*x)
+		body = *x
+		goto L
 	case Response:
 		h.Status = x.Status
-		h.SetBody(x.Body)
+		body = x.Body
+		goto L
 	default:
 		if h.Status == 0 {
 			h.Status = http.StatusOK
@@ -312,7 +316,7 @@ func handlePanics(f Handler) Handler {
 				return
 			}
 			if r != halt {
-				h.Status = 500
+				h.Status = http.StatusInternalServerError
 			}
 			panic(r)
 		}()
@@ -332,13 +336,15 @@ func (h H) Write(p []byte) (int, error) {
 var _ http.FileSystem = apiDir{}
 
 type apiDir struct {
+	h    H
 	root http.FileSystem
 }
 
 func (d apiDir) Open(name string) (http.File, error) {
 	f, err := d.root.Open(name)
 	if err != nil {
-		panic(Response{Status: http.StatusNotFound, Body: err})
+		d.h.Status = http.StatusNotFound
+		d.h.Return(err)
 	}
 	return f, nil
 }
