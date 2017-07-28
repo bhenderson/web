@@ -2,6 +2,9 @@
 
 package main
 
+// Rationale
+// https://stackoverflow.com/questions/34408808/golang-embed-an-interface-with-additional-hidden-methods
+
 import (
 	"bytes"
 	"fmt"
@@ -31,7 +34,7 @@ import (
 // auto generate all combinations of those to keep the functionality
 {{ range . }}
 type plusser{{.Bits}} interface { {{range .Interfaces }}
-  {{if not .On}}// {{end}}{{.Interface}} {{end}}
+	{{if .Off}}// {{end}}{{.Interface}} {{end}}
 }
 
 type responseWriter{{.Bits}} struct {
@@ -62,8 +65,7 @@ type Interface struct {
 	Interface string
 }
 
-func (ifs Interface) On() bool {
-	// Reverse the bit mask so that 0 is "on"
+func (ifs Interface) Off() bool {
 	return ifs.Bit == 0
 }
 
@@ -90,10 +92,11 @@ func compileAll(ifs []string) []Interfaces {
 	all := make([]Interfaces, 1<<uint(len(ifs)))
 
 	for i := range all {
-		all[i].Bit = i
+		b := len(all) - i - 1
+		all[i].Bit = b
 		all[i].Interfaces = make([]Interface, len(ifs))
 		for j := range ifs {
-			all[i].Interfaces[j].Bit = i & (1 << uint(j))
+			all[i].Interfaces[j].Bit = b & (1 << uint(len(ifs)-j-1))
 			all[i].Interfaces[j].Interface = ifs[j]
 		}
 	}
