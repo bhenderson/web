@@ -4,6 +4,7 @@ package main
 
 // Rationale
 // https://stackoverflow.com/questions/34408808/golang-embed-an-interface-with-additional-hidden-methods
+// https://github.com/golang/go/issues/18997
 
 import (
 	"bytes"
@@ -20,6 +21,7 @@ var all = []string{
 	"http.Flusher",
 	"http.Hijacker",
 	"io.ReaderFrom",
+	"http.Pusher",
 }
 
 var tmp = template.Must(template.New("plusser").Parse(`package web
@@ -57,7 +59,7 @@ type Interfaces struct {
 }
 
 func (ifs Interfaces) Bits() string {
-	return fmt.Sprintf("%04b", ifs.Bit)
+	return fmt.Sprintf("%0*b", len(all), ifs.Bit)
 }
 
 type Interface struct {
