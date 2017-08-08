@@ -67,9 +67,9 @@ func TestTestResponse(t *testing.T) {
 }
 
 func TestMiddleware(t *testing.T) {
-	var isPlusser, midInit, midCalled bool
+	var isFlusher, midInit, midCalled bool
 	var app http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
-		_, isPlusser = w.(plusser0)
+		_, isFlusher = w.(http.Flusher)
 	}
 	s := Stack{}
 
@@ -103,7 +103,7 @@ func TestMiddleware(t *testing.T) {
 		t.Error("expected middleware to get called.")
 	}
 
-	if !isPlusser {
-		t.Error("expected ResponseWriter to maintain Plusser")
+	if !isFlusher {
+		t.Error("expected ResponseWriter to maintain Flusher")
 	}
 }

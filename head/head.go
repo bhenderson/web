@@ -19,7 +19,7 @@ func (hw *headWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func (hw *headerWriter) WriteHeader(i int) {
+func (hw *headWriter) WriteHeader(i int) {
 	hw.Header().Set("Content-Length", strconv.Itoa(hw.size))
 	hw.ResponseWriter.WriteHeader(i)
 }
